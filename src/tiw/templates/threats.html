@@ -4,6 +4,10 @@
 {{ m.page_head("Threats", "Every tracked vulnerability with its current evidence status and the most urgent decision it drives.", info, d.period.key, url) }}
 
 <div class="filters">
+  <nav class="segmented" aria-label="Scope">
+    <a href="{{ url(scope=None, cursor=None) }}" {% if d.scope == "mine" %}aria-current="true"{% endif %}>Your assets</a>
+    <a href="{{ url(scope='all', cursor=None) }}" {% if d.scope == "all" %}aria-current="true"{% endif %}>All threats</a>
+  </nav>
   <nav class="segmented" aria-label="Evidence status">
     <a href="{{ url(status=None, cursor=None) }}" {% if not status %}aria-current="true"{% endif %}>All</a>
     {% for s in ["conflict", "confirmed", "reported", "unknown"] %}
@@ -13,6 +17,7 @@
   <form method="get" action="/threats" role="search">
     <input type="hidden" name="period" value="{{ d.period.key }}">
     {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    {% if d.scope == "all" %}<input type="hidden" name="scope" value="all">{% endif %}
     <label class="check"><input type="checkbox" name="changed" value="1" {% if changed %}checked{% endif %}> Changed in period</label>
     <label for="q" class="sr-only">Search threats</label>
     <input id="q" type="search" name="q" value="{{ q }}" placeholder="Search ID or title" maxlength="100">
@@ -45,7 +50,11 @@
   {% else %}
   <div class="pad">
     {% if info.has_data %}
-      {{ m.empty("No threats match these filters", "Clear the filters or choose a longer period.", "/threats", "Clear filters") }}
+      {% if d.scope == "mine" %}
+      {{ m.empty("No threats touch your assets with these filters", "Only threats with a finding on one of your assets, or seen by your sensors, are shown here. Import findings, or look at every tracked threat.", "/threats?scope=all", "Show all threats", "/import?kind=findings", "Import findings") }}
+      {% else %}
+      {{ m.empty("No threats match these filters", "Clear the filters or choose a longer period.", "/threats?scope=all", "Clear filters") }}
+      {% endif %}
     {% else %}
       {{ m.empty("No threats tracked yet", "Threats appear when KEV, EPSS, claims, findings or observations mention a vulnerability.", "/import", "Import a file") }}
     {% endif %}

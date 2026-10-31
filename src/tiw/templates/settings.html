@@ -22,7 +22,7 @@
       <li><strong>Data mode</strong><br><span class="secondary">{{ "Synthetic (demo fixtures only)" if info.synthetic else "Live" }}</span></li>
       <li><strong>Clock</strong><br><span class="secondary">{% if info.clock_fixed %}Fixed at {{ info.now | t }} for a reproducible demo{% else %}System clock (UTC){% endif %}</span></li>
       <li><strong>Brand name</strong><br><span class="secondary">{{ info.brand_name }}. Change with <code>tiw set brand_name "…"</code>.</span></li>
-      <li><strong>Network</strong><br><span class="secondary">This build makes no outbound requests. Live KEV/EPSS fetching is a later milestone.</span></li>
+      <li><strong>Network</strong><br><span class="secondary">The only outbound requests are the KEV/EPSS downloads you start on Sources &amp; Health (official URLs only).</span></li>
     </ul>
   </section>
 </div>

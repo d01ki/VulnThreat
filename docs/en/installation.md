@@ -6,7 +6,7 @@
 - [uv](https://docs.astral.sh/uv/) (dependency versions are pinned in `uv.lock`)
 - Windows PowerShell or a Linux shell
 
-No network access is needed at runtime. `uv sync` needs network access once to download the pinned packages.
+`uv sync` needs network access once, to download the pinned packages. At runtime the only outbound requests are the KEV/EPSS downloads you start (`tiw fetch`, or the buttons on Sources & Health).
 
 ## Install from source
 
@@ -46,11 +46,21 @@ uv run tiw init --data-dir D:\tiw    # elsewhere
 ## Docker
 
 ```powershell
-docker build -t threat-intel-workbench .
-docker run --rm -p 127.0.0.1:8787:8787 -v tiw-data:/data threat-intel-workbench
+docker build -t threat-workbench .
+# real data (default): persistent workspace in the tiw-data volume
+docker run -d --name threat-workbench -p 127.0.0.1:8787:8787 -v tiw-data:/data threat-workbench
+# synthetic demo, kept separate
+docker run --rm -p 127.0.0.1:8788:8787 -e TIW_MODE=demo threat-workbench
 ```
 
-The image seeds and serves the synthetic demo by default. Inside the container the server binds to `0.0.0.0`, because the container itself is the isolation boundary. Publish the port on `127.0.0.1` only, as shown above. LAN exposure is not supported in P0.
+| Variable | Default | Meaning |
+|---|---|---|
+| `TIW_MODE` | `live` | `live` initialises or reuses `/data/workspace`; `demo` seeds scenarios A–D into `/data/demo` |
+| `TIW_PORT` | `8787` | Port inside the container |
+
+CLI commands run inside the container, for example `docker exec threat-workbench tiw fetch kev --data-dir /data/workspace`.
+
+Inside the container the server binds to `0.0.0.0`, because the container itself is the isolation boundary. Publish the port on `127.0.0.1` only, as shown above. LAN exposure is not supported.
 
 ## Settings
 

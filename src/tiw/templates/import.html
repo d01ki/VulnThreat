@@ -26,7 +26,7 @@
   </section>
   <section class="card span-5" aria-labelledby="fmt-h">
     <div class="card-head"><div><h2 id="fmt-h">Expected formats</h2></div></div>
-    <ul class="reason-list">{% for k in kinds %}<li><code>{{ k }}</code><br><span class="secondary">{{ kind_help[k] }}</span></li>{% endfor %}</ul>
+    <ul class="reason-list">{% for k in kinds %}<li><code>{{ k }}</code>{% if k in ("assets", "findings", "observations") %} <a class="small" href="/import/template/{{ k }}">Download template</a>{% endif %}<br><span class="secondary">{{ kind_help[k] }}</span></li>{% endfor %}</ul>
     <p class="chart-notes">Article text and log content are stored as data only. Nothing inside a file is executed or followed as an instruction.</p>
   </section>
 </div>

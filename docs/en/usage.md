@@ -5,6 +5,7 @@
 ```text
 tiw init [--data-dir DIR] [--synthetic]
 tiw import {kev|epss|assets|findings|observations|claims} FILE [--allow-partial] [--dry-run] [--json]
+tiw fetch {kev|epss}
 tiw assess [--changed | --all] [--id DEMO-VULN-001 ...]
 tiw serve [--host 127.0.0.1] [--port 8787]
 tiw export --threat ID [--format markdown|json] [--stdout]
@@ -18,9 +19,11 @@ tiw demo reset --yes
 - Every import is validated first. By default one invalid row rejects the whole file and nothing is written. `--allow-partial` keeps valid rows and reports the rejected ones (line, field, reason). Rejected values are never echoed back.
 - Re-importing an identical file (same SHA-256 and adapter version) is a no-op. Identical rows in a different file add no history.
 - Every import ends with a recompute. Run `tiw assess` after time passes, so that expiry of exposure evidence, `not_affected` reviews and EPSS is applied. In P0 `--changed` re-evaluates every vulnerability; this is idempotent.
-- `tiw fetch` (live KEV/EPSS) is **not implemented**. It is planned for milestone M4.
+- `tiw fetch kev` downloads the official CISA KEV catalog. `tiw fetch epss` queries FIRST EPSS only for the CVEs you track (findings and sensor events). Both run only when you start them. Only `www.cisa.gov` and `api.first.org` are allowed: HTTPS, port 443, every redirect re-checked, DNS answers must be public addresses, at most 10 MB per response, and 2 retries on network errors, 5xx or 429 responses. A failed download is recorded on Sources & Health and never removes existing evidence.
 
 ## Import formats
+
+Templates can be downloaded from the Import page or `/import/template/{assets|findings|observations}`.
 
 Limits: 10 MB and 50,000 records per file. Archives and executables are rejected. All timestamps need an explicit offset (`Z` or `+09:00`).
 
@@ -82,13 +85,14 @@ Saved responses in the official layouts (the KEV catalog JSON, and the EPSS API 
 
 | Screen | Purpose |
 |---|---|
-| Threat Changes | KPIs (new intel changes, local attempts, assets to reassess, open questions), activity chart (public = blue solid line, local = green dashed line, sensor outages hatched rather than drawn as zero), evidence status, latest changes, source health, priority investigations, decision changes. The period selector applies to all of them and is kept in the URL |
+| Threat Changes | Get-started checklist until assets, findings and KEV are loaded. KPIs (threat changes, attacks on your sensors, assets to check, open questions), activity chart (public reports = blue solid line, your sensors = green dashed line, sensor outages hatched rather than drawn as zero), evidence status, what changed, source health, priority investigations, decision changes. **Your assets / All threats** limits everything to threats that have a finding on your assets or were seen by your sensors (the default), or shows the full KEV catalog. The period and scope are kept in the URL |
 | Threats / Threat Detail | Evidence status, assessment axes, timeline, and Evidence / Observations / Assets / Decisions tabs. Claims can be reviewed in a dialog (append-only, reason required). JSON/Markdown export |
 | Observations | Mapped, unmapped and quarantined events, plus sensor coverage |
 | Affected Assets | Current decision per finding with reason codes and unconfirmed conditions |
 | Decision Diff | Before/After of every condition (changed rows tinted), "Why this changed", triggering deltas, evidence added or no longer used, and the full decision history |
 | Investigation Queue | Grouped questions with the evidence needed. Correction-review tasks are closed manually; others close automatically |
-| Sources & Health | Last successful update, last failure, freshness, import runs and their errors, coverage, quarantine |
+| Sources & Health | **Fetch KEV / Fetch EPSS** buttons, last successful update, last failure, freshness, import runs and their errors, coverage, quarantine |
+| How it works | What the tool does, where to find answers, the rules it never breaks, the setup checklist, and CSV/JSONL templates |
 | Import | Choose file → validation result → confirm import |
 | Settings | Display timezone; read-only workspace facts |
 
@@ -113,6 +117,7 @@ Base path `/api/v1`. OpenAPI is at `/api/v1/openapi.json`, docs at `/api/docs`. 
 | `GET /investigations` | Queue; `include_resolved` |
 | `POST /investigations/{id}/resolve` | Correction-review tasks only |
 | `POST /exports` | `{"vulnerability_id","format":"json|markdown"}`, written to `exports/` |
+| `POST /fetch/{kev,epss}` | Download from the official feed and import (502 with errors if the download fails) |
 | `GET /health/sources` | Freshness and failures |
 
 Errors use `{"error":{"code":"…","message":"…","details":[]}}`. Status codes: 401 for a missing token, 404 when nothing is found, 409 for a conflict, 413 when a file is too large, and 422 for invalid input.

@@ -281,6 +281,18 @@ def build_router(ws: db.Workspace) -> APIRouter:
             raise ApiError(404, "not_found", "unknown vulnerability") from None
         return {"path": path, "format": body.format, "content": content}
 
+    @r.post("/fetch/{feed}", response_model=ImportResult)
+    def post_fetch(feed: Literal["kev", "epss"]) -> Any:
+        from tiw.services.fetch import FetchError, fetch_epss, fetch_kev
+
+        try:
+            out = fetch_kev(ws, actor="api") if feed == "kev" else fetch_epss(ws, actor="api")
+        except FetchError as exc:
+            raise ApiError(409, "fetch_refused", str(exc)) from None
+        if out.status == "failed":
+            raise ApiError(502, "fetch_failed", "Retrieval failed; existing evidence was kept", out.errors)
+        return out.as_dict()
+
     @r.get("/health/sources")
     def get_health() -> Any:
         with db.session_scope(ws) as s:

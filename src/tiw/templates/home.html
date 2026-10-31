@@ -1,11 +1,34 @@
 {% extends "base.html" %}
 {% import "macros.html" as m with context %}
 {% block content %}
-{{ m.page_head("Threat Changes", "What changed in threat activity, what it is based on, and which asset decisions it moved.", info, d.period.key, url) }}
+{{ m.page_head("Threat Changes", "Public exploitation reports and attacks on your own sensors, turned into a clear decision for each of your assets.", info, d.period.key, url) }}
 
-{% if not info.has_data %}
-  {{ m.empty("No data imported yet", "Import assets, findings, observations or a saved KEV/EPSS response to start tracking changes. To explore with synthetic data, run `tiw demo seed` and serve the demo workspace.", "/import", "Import a file", "/sources", "Check sources") }}
-{% else %}
+{% if not info.synthetic and not d.setup.core_done %}
+<section class="card setup" aria-labelledby="setup-h">
+  <div class="card-head">
+    <div><h2 id="setup-h">Get started</h2><p class="sub">{{ d.setup.done }} of {{ d.setup.steps | length }} done. Once your assets, their vulnerabilities and the KEV catalog are loaded, this page shows which assets need action and why.</p></div>
+    <a class="btn btn-sm btn-ghost" href="/guide">How it works</a>
+  </div>
+  <ol class="setup-steps">
+    {% for st in d.setup.steps %}
+    <li class="{{ 'done' if st.done else '' }}">
+      <span class="step-mark" aria-hidden="true">{% if st.done %}{{ icon("check", "icon icon-sm") }}{% else %}{{ loop.index }}{% endif %}</span>
+      <div class="step-body"><strong>{{ st.title }}</strong>{% if st.done %}<span class="sr-only"> (done)</span>{% endif %}<span class="secondary small">{{ st.text }}</span></div>
+      {% if not st.done %}<a class="btn btn-sm" href="{{ st.href }}">{{ st.action }}</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+{% if info.has_data %}
+<div class="filters scope-bar">
+  <nav class="segmented" aria-label="Scope">
+    <a href="{{ url(scope=None) }}" {% if d.scope == "mine" %}aria-current="true"{% endif %}>Your assets</a>
+    <a href="{{ url(scope='all') }}" {% if d.scope == "all" %}aria-current="true"{% endif %}>All threats</a>
+  </nav>
+  <span class="secondary small">{% if d.scope == "mine" %}Showing {{ d.relevant_count }} threat(s) that have a finding on one of your assets or were seen by your sensors.{% else %}Showing every tracked threat, including KEV entries that affect none of your assets.{% endif %}</span>
+</div>
 
 <section class="grid" aria-label="Key figures for {{ d.period.label | lower }}">
   {% for k in d.kpis %}
@@ -22,18 +45,18 @@
   <section class="card span-8" aria-labelledby="activity-h">
     <div class="card-head">
       <div>
-        <h2 id="activity-h">Intelligence activity</h2>
-        <p class="sub">Count per {{ d.activity.granularity }} · {{ d.activity.timezone }} · public updates by publication date, local observations by observed time</p>
+        <h2 id="activity-h">Activity</h2>
+        <p class="sub">New public reports (by publication date) and events seen by your sensors, per {{ d.activity.granularity }}, {{ d.activity.timezone }}</p>
       </div>
       <div class="chart-legend" aria-hidden="true">
-        <span class="legend-item"><span class="swatch-line swatch-public"></span>Public updates</span>
-        <span class="legend-item"><span class="swatch-line swatch-local"></span>Local observations</span>
+        <span class="legend-item"><span class="swatch-line swatch-public"></span>Public reports</span>
+        <span class="legend-item"><span class="swatch-line swatch-local"></span>Your sensors</span>
         {% if chart.gaps %}<span class="legend-item"><span class="swatch-gap"></span>No sensor coverage</span>{% endif %}
       </div>
     </div>
     {% if d.activity.has_data %}
     <svg class="chart" viewBox="0 0 {{ chart.w }} {{ chart.h }}" role="img" aria-labelledby="activity-h activity-desc">
-      <desc id="activity-desc">Line chart of public updates and local observations. The data table below lists every value.</desc>
+      <desc id="activity-desc">Line chart of public reports and sensor events. The data table below lists every value.</desc>
       <defs><pattern id="gap-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="#26324b"/></pattern></defs>
       {% for g in chart.gaps %}<rect class="gap" x="{{ g.x }}" y="{{ chart.top }}" width="{{ g.w }}" height="{{ chart.bottom - chart.top }}"/>{% endfor %}
       {% for g in chart.grid %}
@@ -43,18 +66,18 @@
       {% for xl in chart.xlabels %}<text class="axis-label" x="{{ xl.x }}" y="{{ chart.h - 8 }}" text-anchor="middle">{{ xl.label }}</text>{% endfor %}
       {% for p in chart.public %}<path class="series-public" d="{{ p }}"/>{% endfor %}
       {% for p in chart.local %}<path class="series-local" d="{{ p }}"/>{% endfor %}
-      {% for mk in chart.markers.public %}<circle class="dot-public" cx="{{ mk.x }}" cy="{{ mk.y }}" r="3"><title>{{ mk.label }}: {{ mk.v }} public update(s)</title></circle>{% endfor %}
-      {% for mk in chart.markers.local %}<rect class="dot-local" x="{{ mk.x - 3 }}" y="{{ mk.y - 3 }}" width="6" height="6"><title>{{ mk.label }}: {{ mk.v }} local observation(s)</title></rect>{% endfor %}
+      {% for mk in chart.markers.public %}<circle class="dot-public" cx="{{ mk.x }}" cy="{{ mk.y }}" r="3"><title>{{ mk.label }}: {{ mk.v }} public report(s)</title></circle>{% endfor %}
+      {% for mk in chart.markers.local %}<rect class="dot-local" x="{{ mk.x - 3 }}" y="{{ mk.y - 3 }}" width="6" height="6"><title>{{ mk.label }}: {{ mk.v }} sensor event(s)</title></rect>{% endfor %}
     </svg>
     {% else %}
-      {{ m.empty("No activity in this period", "No public updates or local observations fall into " ~ (d.period.label | lower) ~ ". Choose a longer period or import new data.", url(period="all"), "Show all time", "/import", "Import") }}
+      {{ m.empty("No activity in this period", "No public reports or sensor events fall into " ~ (d.period.label | lower) ~ ". Choose a longer period or import new data.", url(period="all"), "Show all time", "/import", "Import") }}
     {% endif %}
     {% for n in d.activity.notes %}<p class="chart-notes">{{ icon("info", "icon icon-sm") }} {{ n }}</p>{% endfor %}
     <details class="data-table">
       <summary>Show data table</summary>
       <div class="table-wrap" data-x="scroll">
         <table>
-          <thead><tr><th scope="col">Bucket</th><th scope="col" class="r">Public updates</th><th scope="col" class="r">Local observations</th></tr></thead>
+          <thead><tr><th scope="col">Bucket</th><th scope="col" class="r">Public reports</th><th scope="col" class="r">Your sensors</th></tr></thead>
           <tbody>
           {% for p in d.activity.points %}
             <tr><td class="num">{{ p.start | t("%Y-%m-%d %H:%M") }}</td><td class="r num">{{ p.public }}</td><td class="r num">{% if p.gap %}<span class="muted">no coverage</span>{% else %}{{ p.local }}{% endif %}</td></tr>
@@ -99,10 +122,10 @@
   <section class="card card-flush span-8" aria-labelledby="changes-h">
     <div class="card-head">
       <div>
-        <h2 id="changes-h">Latest intelligence changes</h2>
-        <p class="sub">Meaningful deltas only · {{ d.period.label | lower }}</p>
+        <h2 id="changes-h">What changed</h2>
+        <p class="sub">Changes that can move a decision · {{ d.period.label | lower }} · reposts and refetches are not counted</p>
       </div>
-      <a class="btn btn-sm btn-ghost" href="/threats?changed=1&amp;period={{ d.period.key }}">All changed threats</a>
+      <a class="btn btn-sm btn-ghost" href="/threats?changed=1&amp;period={{ d.period.key }}&amp;scope={{ d.scope }}">All changed threats</a>
     </div>
     {% if d.latest_changes %}
     <div class="table-wrap">
@@ -116,14 +139,14 @@
             <td><span>{{ c.label }}</span><span class="line2 clip" title="{{ c.summary }}">{{ c.summary }}</span></td>
             <td class="r num"><a href="/threats/{{ c.delta.vulnerability_id }}?tab=evidence">{{ c.evidence_count }}</a></td>
             <td class="r num"><a href="/threats/{{ c.delta.vulnerability_id }}?tab=assets">{{ c.assets | length }}</a></td>
-            <td class="nowrap">{% if c.first_decision_id %}<a href="/decisions/{{ c.first_decision_id }}">View decision diff</a>{% else %}<a href="/threats/{{ c.delta.vulnerability_id }}">Open threat</a><span class="line2">no decision changed</span>{% endif %}</td>
+            <td class="nowrap">{% if c.first_decision_id %}<a href="/decisions/{{ c.first_decision_id }}">Open diff</a>{% else %}<a href="/threats/{{ c.delta.vulnerability_id }}">Open threat</a><span class="line2">no decision changed</span>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-      <div class="pad-b">{{ m.empty("No intelligence changes in this period", "Nothing meaningful changed in " ~ (d.period.label | lower) ~ ". Refetches and reposts are not counted.", url(period="all"), "Show all time") }}</div>
+      <div class="pad-b">{{ m.empty("No changes in this period", "Nothing that could move a decision changed in " ~ (d.period.label | lower) ~ ". Refetches and reposts are not counted.", url(period="all"), "Show all time") }}</div>
     {% endif %}
   </section>
 
@@ -174,7 +197,7 @@
           <span><a class="mono" href="/decisions/{{ dc.decision.id }}">{{ dc.asset_id }}</a> <span class="muted">for</span> {{ m.vid(dc.vulnerability_id) }}</span>
           <span class="arrow-pair">{{ m.urgency(dc.previous.urgency) }}{{ icon("arrow", "icon icon-sm muted") }}<span class="sr-only">changed to</span>{{ m.urgency(dc.decision.urgency) }}</span>
         </div>
-        <div class="meta"><span>{{ dc.previous.action | replace("_", " ") }} to {{ dc.decision.action | replace("_", " ") }}</span><span>{{ RULE_TITLES[dc.decision.rule] }}</span><span class="num">{{ dc.decision.created_at | t("%m-%d %H:%M") }}</span></div>
+        <div class="meta"><span>{% if dc.previous.action == dc.decision.action %}{{ dc.decision.action | replace("_", " ") | capitalize }}, urgency {{ dc.previous.urgency }} to {{ dc.decision.urgency }}{% else %}{{ dc.previous.action | replace("_", " ") | capitalize }} to {{ dc.decision.action | replace("_", " ") }}{% endif %}</span><span>{{ RULE_TITLES[dc.decision.rule] }}</span><span class="num">{{ dc.decision.created_at | t("%m-%d %H:%M") }}</span></div>
       </li>
       {% endfor %}
     </ul>

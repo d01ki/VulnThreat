@@ -3,6 +3,25 @@
 {% block content %}
 {{ m.page_head("Sources & Health", "When each input last updated successfully, what failed, and what the sensors actually covered. A failed or stale source never deletes evidence that is already known.", info) }}
 
+{% if not info.synthetic %}
+<section class="card" id="fetch" aria-labelledby="fetch-h" data-x="mb5">
+  <div class="card-head"><div><h2 id="fetch-h">Download public feeds</h2><p class="sub">Runs only when you press a button. Only the official URLs are contacted; nothing about your assets is sent, except that EPSS is queried for the CVE IDs you track.</p></div></div>
+  <div class="fetch-grid">
+    <form method="post" action="/sources/fetch/kev" data-busy="Downloading KEV…" class="fetch-item">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+      <div><strong>CISA KEV catalog</strong><span class="secondary small">Vulnerabilities known to be exploited. Recommended at least weekly.</span></div>
+      <button class="btn btn-primary btn-sm" type="submit">{{ icon("download", "icon icon-sm") }} Fetch KEV</button>
+    </form>
+    <form method="post" action="/sources/fetch/epss" data-busy="Downloading EPSS…" class="fetch-item">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+      <div><strong>FIRST EPSS scores</strong><span class="secondary small">Exploit likelihood for your tracked CVEs. Stale after 72 h; used for ordering only.</span></div>
+      <button class="btn btn-sm" type="submit">{{ icon("download", "icon icon-sm") }} Fetch EPSS</button>
+    </form>
+  </div>
+  <p id="form-status" class="sr-only" role="status" aria-live="polite"></p>
+</section>
+{% endif %}
+
 <section class="card card-flush" aria-labelledby="src-h">
   <div class="card-head"><div><h2 id="src-h">Sources</h2><p class="sub">Freshness policy: KEV 7 days, EPSS 72 h, asset records by their own expiry. These are product defaults, not scientific thresholds.</p></div></div>
   {% if health %}

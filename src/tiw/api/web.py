@@ -38,7 +38,25 @@ KIND_HELP = {
 NOTICES = {
     "review_saved": "Review recorded. Assessments and decisions were recomputed.",
     "task_resolved": "Task marked as resolved.",
+    "fetch_ok": "Download finished and imported. Decisions were recomputed.",
+    "fetch_failed": "Download failed. Existing data was kept; see the failure below.",
     "settings_saved": "Settings saved.",
+}
+IMPORT_TEMPLATES = {
+    "assets": ("assets-template.csv", "text/csv; charset=utf-8", "".join(line + chr(10) for line in [
+        "asset_id,name,criticality,internet_exposed,observed_at,expires_at,owner",
+        "web-01,public-web-server,critical,true,2026-11-01T00:00:00Z,2026-12-01T00:00:00Z,web-team",
+        "hr-01,internal-hr-app,high,false,2026-11-01T00:00:00Z,2026-12-01T00:00:00Z,corp-it",
+    ])),
+    "findings": ("findings-template.csv", "text/csv; charset=utf-8", "".join(line + chr(10) for line in [
+        "finding_id,asset_id,vulnerability_id,applicability,observed_at,rationale,evidence_ref,reviewer,expires_at",
+        "web-01-CVE-2021-44228,web-01,CVE-2021-44228,affected,2026-11-01T00:00:00Z,,,,",
+        "hr-01-CVE-2021-44228,hr-01,CVE-2021-44228,not_affected,2026-11-01T00:00:00Z,Library not on classpath,sbom:hr-01-2026-11-01,alice,2026-12-01T00:00:00Z",
+    ])),
+    "observations": ("observations-template.jsonl", "application/x-ndjson", "".join(line + chr(10) for line in [
+        '{"schema_version":"1.0","record_type":"sensor_window","sensor_id":"ids-1","start":"2026-11-01T00:00:00Z","end":"2026-11-08T00:00:00Z","status":"ok","coverage":{"assets":["web-01"]}}',
+        '{"schema_version":"1.0","sensor_id":"ids-1","external_event_id":"alert-1001","observed_at":"2026-11-02T10:00:00Z","asset_id":"web-01","vulnerability_id":"CVE-2021-44228","event_type":"exploit_attempt","mapping_status":"reviewer_confirmed","evidence":{"rule_id":"sid-1000001"}}',
+    ])),
 }
 COMMON_TZ = ["Asia/Tokyo", "UTC", "Asia/Singapore", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles"]
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -131,9 +149,9 @@ def build_router(ws: db.Workspace) -> APIRouter:
     r = APIRouter()
 
     @r.get("/", response_class=HTMLResponse)
-    def home(request: Request, period: str = "7d") -> Response:
+    def home(request: Request, period: str = "7d", scope: str = "mine") -> Response:
         with db.session_scope(ws) as s:
-            data = queries.home(s, period)
+            data = queries.home(s, period, "all" if scope == "all" else "mine")
         return render(
             request,
             "home.html",
@@ -147,13 +165,14 @@ def build_router(ws: db.Workspace) -> APIRouter:
         )
 
     @r.get("/threats", response_class=HTMLResponse)
-    def threats(request: Request, status: str | None = None, period: str = "all", q: str | None = None, changed: str | None = None, cursor: str | None = None) -> Response:
+    def threats(request: Request, status: str | None = None, period: str = "all", q: str | None = None, changed: str | None = None, cursor: str | None = None, scope: str = "mine") -> Response:
         st = status if status in queries.EVIDENCE_STATUS_ORDER else None
+        sc = "all" if scope == "all" else "mine"
         with db.session_scope(ws) as s:
             try:
-                data = queries.threats(s, status=st, period_key=period, q=(q or "")[:100] or None, changed_only=bool(changed), cursor=cursor)
+                data = queries.threats(s, status=st, period_key=period, q=(q or "")[:100] or None, changed_only=bool(changed), cursor=cursor, scope=sc)
             except (ValueError, UnicodeDecodeError):
-                data = queries.threats(s, status=st, period_key=period, q=(q or "")[:100] or None, changed_only=bool(changed))
+                data = queries.threats(s, status=st, period_key=period, q=(q or "")[:100] or None, changed_only=bool(changed), scope=sc)
         return render(request, "threats.html", {"title": "Threats", "nav": "threats", "d": data, "status": st, "q": q or "", "changed": bool(changed)})
 
     @r.get("/threats/{vid}", response_class=HTMLResponse)
@@ -277,6 +296,33 @@ def build_router(ws: db.Workspace) -> APIRouter:
         media = "application/json" if fmt == "json" else "text/markdown; charset=utf-8"
         ext = "json" if fmt == "json" else "md"
         return Response(content, media_type=media, headers={"Content-Disposition": f'attachment; filename="{safe}.{ext}"'})
+
+    @r.post("/sources/fetch/{kind}")
+    def fetch(request: Request, kind: str, csrf_token: str = Form("")) -> Response:
+        from tiw.services.fetch import FetchError, fetch_epss, fetch_kev
+
+        if not check_csrf(request, csrf_token):
+            return forbidden(request)
+        if kind not in ("kev", "epss"):
+            return render(request, "error.html", {"title": "Unknown feed", "message": "Only KEV and EPSS can be fetched.", "nav": "sources"}, 404)
+        try:
+            out = fetch_kev(ws, actor="ui") if kind == "kev" else fetch_epss(ws, actor="ui")
+        except FetchError as exc:
+            return render(request, "error.html", {"title": "Nothing fetched", "message": str(exc), "nav": "sources"}, 409)
+        return RedirectResponse(f"/sources?notice={'fetch_failed' if out.status == 'failed' else 'fetch_ok'}#fetch", status_code=303)
+
+    @r.get("/guide", response_class=HTMLResponse)
+    def guide(request: Request) -> Response:
+        with db.session_scope(ws) as s:
+            setup = queries.setup_status(s)
+        return render(request, "guide.html", {"title": "How it works", "nav": "guide", "setup": setup})
+
+    @r.get("/import/template/{kind}")
+    def template(kind: str) -> Response:
+        if kind not in IMPORT_TEMPLATES:
+            return Response("unknown template", status_code=404, media_type="text/plain")
+        name, media, body = IMPORT_TEMPLATES[kind]
+        return Response(body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @r.get("/settings", response_class=HTMLResponse)
     def settings(request: Request) -> Response:
