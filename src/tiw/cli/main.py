@@ -90,6 +90,34 @@ def import_cmd(
 
 
 @app.command()
+def fetch(
+    feed: str = typer.Argument(..., help="kev | epss"),
+    data_dir: Optional[Path] = DataDir,
+) -> None:
+    """Download CISA KEV or FIRST EPSS from the official URLs and import it (explicit, allowlisted)."""
+    from tiw.services.fetch import FetchError, fetch_epss, fetch_kev
+
+    ws = _ws(data_dir)
+    _require(ws)
+    if feed not in ("kev", "epss"):
+        typer.secho("feed must be kev or epss", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
+    try:
+        out = fetch_kev(ws) if feed == "kev" else fetch_epss(ws)
+    except FetchError as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from None
+    typer.echo(f"{feed}: {out.status} accepted={out.accepted} duplicates={out.duplicates} rejected={out.rejected}")
+    for e in out.errors[:10]:
+        typer.echo(f"  {e['field'] or ''}: {e['reason']}")
+    if out.recompute:
+        r = out.recompute
+        typer.echo(f"recompute: assessments={r['assessments']} changes={r['deltas']} decisions={r['decisions']}")
+    if out.status == "failed":
+        raise typer.Exit(1)
+
+
+@app.command()
 def assess(
     changed: bool = typer.Option(True, "--changed/--all", help="Recompute changed inputs (P0 re-evaluates every vulnerability; idempotent)"),
     vulnerability: Optional[list[str]] = typer.Option(None, "--id", help="Only these vulnerability IDs"),

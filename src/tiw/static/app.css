@@ -392,3 +392,24 @@ dialog h2 { font-size: 16px; margin-bottom: var(--space-4); }
 .grid { align-items: start; }
 td a.mono, td .mono { white-space: nowrap; }
 .kpi { align-self: stretch; }
+
+/* ---------- getting started, guide, fetch ---------- */
+.setup { margin-bottom: var(--space-5); border-color: var(--border-strong); }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.setup-steps li { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid #1a2640; }
+.setup-steps li:last-child { border-bottom: 0; }
+.step-mark { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--border-strong); color: var(--text-secondary); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.setup-steps li.done .step-mark { border-color: #2f5a3d; color: var(--success); background: #10231a; }
+.setup-steps li.done strong { color: var(--text-secondary); }
+.step-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.scope-bar { margin-bottom: var(--space-5); }
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); counter-reset: flow; }
+.flow li { position: relative; display: flex; flex-direction: column; gap: 6px; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-card); background: #0b1322; }
+.flow li + li::before { content: ""; position: absolute; left: calc(-1 * var(--space-4)); top: 28px; width: var(--space-4); height: 1px; background: var(--accent); opacity: .5; }
+.flow-k { font-size: 12px; color: var(--accent-strong); font-weight: 500; }
+.flow .secondary { font-size: 13px; }
+.fetch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.fetch-item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-card); background: #0b1322; }
+.fetch-item > div { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 1279px) { .flow { grid-template-columns: 1fr; } .flow li + li::before { left: 24px; top: calc(-1 * var(--space-4)); width: 1px; height: var(--space-4); } }
+@media (max-width: 767px) { .fetch-grid { grid-template-columns: 1fr; } .setup-steps li { flex-wrap: wrap; } }

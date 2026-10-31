@@ -192,6 +192,75 @@ def latest_assessment(s: Session, vid: str) -> ThreatAssessment | None:
     ).scalar_one_or_none()
 
 
+# --------------------------------------------------------------------------- bulk snapshot
+
+
+class Snapshot:
+    """All evidence needed for one recompute, loaded with a handful of queries.
+
+    Keeps recompute time roughly linear in data size instead of issuing per-vulnerability
+    queries (a full live KEV catalog has well over a thousand entries).
+    """
+
+    def __init__(self, s: Session):
+        rows = s.execute(
+            select(Claim, SourceRevision, Source)
+            .join(SourceRevision, Claim.revision_id == SourceRevision.id)
+            .join(Source, SourceRevision.source_id == Source.id)
+        ).all()
+        latest_rev: dict[tuple[str, str], int] = {}
+        for rev in s.execute(select(SourceRevision)).scalars():
+            k = (rev.source_id, rev.external_id)
+            latest_rev[k] = max(latest_rev.get(k, 0), rev.seq)
+        states: dict[str, str] = {}
+        for cid, state in s.execute(select(ClaimReview.claim_id, ClaimReview.state).order_by(ClaimReview.seq)).all():
+            states[cid] = state
+        self.claims: dict[str, list[ClaimView]] = defaultdict(list)
+        claim_subject: dict[str, str] = {}
+        for c, rev, src in rows:
+            claim_subject[c.id] = c.subject_id
+            self.claims[c.subject_id].append(
+                ClaimView(
+                    id=c.id, key=c.claim_key, subject_id=c.subject_id, predicate=c.predicate, value=c.value_json,
+                    origin=c.origin, initial_state=c.review_state, effective_state=states.get(c.id, c.review_state),
+                    revision_id=rev.id, revision_is_latest=rev.seq == latest_rev[(rev.source_id, rev.external_id)],
+                    source_name=src.name, source_kind=src.kind, published_at=rev.published_at, fetched_at=rev.fetched_at,
+                    quote=c.quote, locator=c.locator,
+                )
+            )
+        self.relations: dict[str, list[RelationView]] = defaultdict(list)
+        for r in s.execute(select(ClaimRelation)).scalars():
+            rv = RelationView(r.from_claim_id, r.to_claim_id, r.kind, r.verification)
+            subjects = {claim_subject.get(r.from_claim_id), claim_subject.get(r.to_claim_id)} - {None}
+            for subj in subjects:
+                self.relations[subj].append(rv)
+        self.observations: dict[str, list[ObservationView]] = defaultdict(list)
+        for o in s.execute(
+            select(Observation).where(Observation.status == "accepted", Observation.cve_id.is_not(None)).order_by(Observation.observed_at, Observation.id)
+        ).scalars():
+            self.observations[o.cve_id].append(
+                ObservationView(o.id, o.asset_id, o.event_type, o.mapping_status, o.observed_at, o.sensor_id, o.reviewer)
+            )
+        self.assessment: dict[str, ThreatAssessment] = {}
+        for a in s.execute(select(ThreatAssessment).order_by(ThreatAssessment.seq)).scalars():
+            self.assessment[a.vulnerability_id] = a
+        self.findings: dict[str, list[Finding]] = defaultdict(list)
+        for f in s.execute(select(Finding).order_by(Finding.id)).scalars():
+            self.findings[f.vulnerability_id].append(f)
+        self.assets = {a.id: a for a in s.execute(select(Asset)).scalars()}
+        self.asset_rev: dict[str, AssetRevision] = {}
+        for ar in s.execute(select(AssetRevision).order_by(AssetRevision.seq)).scalars():
+            self.asset_rev[ar.asset_id] = ar
+        self.applicability: dict[str, ApplicabilityReview] = {}
+        for ap in s.execute(select(ApplicabilityReview).order_by(ApplicabilityReview.seq)).scalars():
+            self.applicability[ap.finding_id] = ap
+        self.decision: dict[str, Decision] = {}
+        for d in s.execute(select(Decision).order_by(Decision.seq)).scalars():
+            self.decision[d.finding_id] = d
+        self.decision_seq = next_seq(s, Decision)
+        self.delta_seq = next_seq(s, IntelligenceDelta)
+
+
 # --------------------------------------------------------------------------- main
 
 
@@ -214,17 +283,19 @@ def recompute_in_session(
     latest_kev, kev_listed = kev_snapshots(s)
     summary = {"assessments": 0, "deltas": 0, "decisions": 0, "vulnerabilities": len(vids)}
     run_deltas: list[IntelligenceDelta] = []
+    snap = Snapshot(s)
 
     for vid in vids:
-        claims, rels = load_claims(s, vid)
-        obs = load_observations(s, vid)
+        claims, rels = snap.claims.get(vid, []), snap.relations.get(vid, [])
+        obs = snap.observations.get(vid, [])
         state, evidence = assess(vid, claims, rels, obs, kev_context(vid, latest_kev, kev_listed, claims), now)
         h = canonical_hash(state)
-        prev = latest_assessment(s, vid)
+        prev = snap.assessment.get(vid)
         if prev is not None and prev.state_hash == h:
             assessment, vuln_changes = prev, []
         else:
             assessment = ThreatAssessment(
+                id=str(uuid.uuid4()),
                 vulnerability_id=vid,
                 created_at=now,
                 evidence_cutoff=now,
@@ -236,12 +307,11 @@ def recompute_in_session(
             )
             s.add(assessment)
             s.flush()
+            snap.assessment[vid] = assessment
             summary["assessments"] += 1
             vuln_changes = derive_deltas(prev.state_json if prev else None, state)
 
-        findings = list(
-            s.execute(select(Finding).where(Finding.vulnerability_id == vid).order_by(Finding.id)).scalars()
-        )
+        findings = snap.findings.get(vid, [])
         obs_by_asset: dict[str, list[str]] = defaultdict(list)
         for o in obs:
             if o.asset_id and o.mapping_status in CONFIRMED_MAPPING:
@@ -256,9 +326,9 @@ def recompute_in_session(
 
         new_decisions: list[Decision] = []
         for f in findings:
-            asset = s.get(Asset, f.asset_id)
-            arev = latest_asset_revision(s, f.asset_id)
-            app = latest_applicability(s, f.id)
+            asset = snap.assets.get(f.asset_id)
+            arev = snap.asset_rev.get(f.asset_id)
+            app = snap.applicability.get(f.id)
             criticality = (arev.context_json.get("criticality") if arev else None) or (asset.criticality if asset else "normal")
             inp = TriageInput(
                 finding_id=f.id,
@@ -276,7 +346,7 @@ def recompute_in_session(
                 now=now,
             )
             res = evaluate(inp)
-            prev_dec = latest_decision(s, f.id)
+            prev_dec = snap.decision.get(f.id)
 
             finding_changes: list[dict[str, Any]] = []
             if prev_dec is not None:
@@ -338,10 +408,12 @@ def recompute_in_session(
                 previous_id=prev_dec.id if prev_dec else None,
                 created_at=now,
                 trigger_delta_ids=triggers,
-                seq=next_seq(s, Decision),
+                seq=snap.decision_seq,
             )
+            snap.decision_seq += 1
             s.add(dec)
             s.flush()
+            snap.decision[f.id] = dec
             new_decisions.append(dec)
             for p in pending:
                 if f.id in p["affected_finding_ids"]:
@@ -357,10 +429,10 @@ def recompute_in_session(
                 change_type=p["change_type"],
                 reasons_json=reasons,
                 created_at=now,
-                seq=next_seq(s, IntelligenceDelta),
+                seq=snap.delta_seq,
             )
+            snap.delta_seq += 1
             s.add(d)
-            s.flush()
             run_deltas.append(d)
         summary["deltas"] += len(pending)
         summary["decisions"] += len(new_decisions)

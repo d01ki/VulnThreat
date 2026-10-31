@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse, PlainTextResponse, Response
 CSRF_COOKIE = "tiw_csrf"
 CSRF_FIELD = "csrf_token"
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+LOOPBACK_NAMES = {"localhost", "127.0.0.1", "::1"}
 
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
@@ -34,7 +35,10 @@ class LocalGuardMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
         host = (request.headers.get("host") or "").lower()
-        if host not in self.allowed:
+        # Loopback names are safe on any port (DNS rebinding needs an attacker-controlled name),
+        # so a container published as -p 127.0.0.1:9000:8787 keeps working.
+        hostname = urlsplit("//" + host).hostname or ""
+        if host not in self.allowed and hostname not in LOOPBACK_NAMES:
             return _deny(request, "bad_host", "Host header not allowed")
         if request.method not in SAFE_METHODS:
             origin = request.headers.get("origin")

@@ -42,7 +42,20 @@ Last updated: 2026-10-31.
 - [x] Tests: 105 passing (`uv run pytest`): rule boundaries, idempotency, determinism, correction isolation, unknown/missing data, scan ≠ exploit, unmapped observations, KEV missing, conflict, escaping, CSP, CSRF, Host/Origin, token, path traversal, size limits, GET does not modify
 - [x] Screenshots at 390 / 768 / 1440 px (Chromium via Playwright). No horizontal page overflow on 9 screens × 3 widths; mobile drawer opens and closes with Esc; review dialog closes with Esc. Kept in `docs/images/`
 - [x] README + `docs/en/overview.md`, `installation.md`, `usage.md`
-- [ ] Docker image **not verified**: the Dockerfile is written, but the Docker daemon was not running on the development machine, so it was never built
+- [x] Docker image built and run (live and demo modes)
+
+## Production mode (branch `feat/production-mode`, part of M4)
+
+- [x] `tiw fetch kev|epss`, `POST /api/v1/fetch/{feed}` and the Fetch buttons on Sources & Health. Explicit operation only. Allowlist of `www.cisa.gov` and `api.first.org`, HTTPS on port 443, no automatic redirects (each hop re-checked), DNS answers must be public, 10 MB cap, 2 retries. Failures are recorded and never remove evidence
+- [x] EPSS is queried only for tracked CVEs (findings and mapped sensor events), in batches of 100
+- [x] Verified against the real feeds on 2026-10-31: KEV 1,766 entries with 0 rejected; EPSS for the tracked CVE
+- [x] Bulk-loaded recompute: no-change recompute over the real KEV takes about 0.7 s (was 9.8 s); first full KEV import about 8 s (was 21 s). Measured on one laptop only, not a formal benchmark
+- [x] "Your assets / All threats" scope, default "Your assets". The first KEV import creates one change per catalog entry; the default scope hides those that touch none of your assets
+- [x] Get-started checklist, "How it works" page, downloadable CSV/JSONL templates
+- [x] Plain wording in the UI ("intel" removed): Threat changes, Attacks on your sensors, Assets to check, What changed, Activity
+- [x] Docker default is a persistent live workspace (`/data/workspace`); `TIW_MODE=demo` serves the synthetic demo separately
+- [x] Host check accepts loopback names on any port (so `-p 127.0.0.1:9000:8787` works), and still rejects foreign names
+- [ ] Not done: log adapters (Suricata EVE), OSV, scheduled fetching, conditional requests (ETag), DNS pinning. The resolver check and the connection resolve separately, so a narrow rebinding window remains; it is mitigated by the fixed two-host allowlist
 
 ## Design inconsistencies and adopted resolutions
 
@@ -68,10 +81,9 @@ Last updated: 2026-10-31.
 
 ## Not implemented / constraints
 
-- **Not implemented (P1/P2 by design):** `tiw fetch` (live KEV/EPSS), Suricata/log adapters, OSV, LLM claim extraction, MISP/OpenCTI/STIX/VEX, multi-user/RBAC, notifications, PostgreSQL, FTS5 search.
+- **Not implemented (P1/P2 by design):** Suricata/log adapters, OSV, LLM claim extraction, MISP/OpenCTI/STIX/VEX, multi-user/RBAC, notifications, PostgreSQL, FTS5 search.
 - **Not measured:** performance at 1,000 assets / 10,000 findings / 50,000 observations (each import currently recomputes every vulnerability), accuracy against real data, the comparison against CVSS-only and KEV+EPSS baselines, and review-time effects. No claims are made about them.
 - The synthetic demo checks behaviour only. It is not evidence of real-world accuracy.
-- The Dockerfile has not been built or run (see M3).
 - Screenshots were taken with Playwright Chromium only. No other browsers or assistive technology were tested. Colour contrast follows the token values; a full contrast audit tool was not run.
 - Single trusted local analyst: there is no authentication in the UI beyond localhost binding, Host/Origin checks and CSRF. The API uses a local bearer token.
 - License (Apache-2.0) is a candidate, not confirmed.

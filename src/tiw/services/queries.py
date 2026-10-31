@@ -212,9 +212,44 @@ def workspace_info(s: Session) -> dict[str, Any]:
 # --------------------------------------------------------------------------- home
 
 
-def home(s: Session, period_key: str | None) -> dict[str, Any]:
+def relevant_vulnerabilities(s: Session) -> set[str]:
+    """Vulnerabilities that touch your environment: findings or confirmed local activity."""
+    ids = set(s.execute(select(Finding.vulnerability_id)).scalars())
+    ids |= set(
+        s.execute(
+            select(Observation.cve_id).where(
+                Observation.status == "accepted", Observation.cve_id.is_not(None), Observation.mapping_status != "unconfirmed"
+            )
+        ).scalars()
+    )
+    return ids
+
+
+def setup_status(s: Session) -> dict[str, Any]:
+    """What has been loaded so far; drives the getting-started checklist."""
+    kinds = {k for (k,) in s.execute(select(Source.kind).join(SourceRevision, SourceRevision.source_id == Source.id).distinct()).all()}
+    steps = [
+        {"key": "assets", "done": s.execute(select(func.count(Asset.id))).scalar_one() > 0,
+         "title": "Add your assets", "text": "A CSV of systems with criticality and whether they face the internet.", "href": "/import?kind=assets", "action": "Import assets"},
+        {"key": "findings", "done": s.execute(select(func.count(Finding.id))).scalar_one() > 0,
+         "title": "Map vulnerabilities to assets", "text": "A CSV from your scanner: which CVE affects which asset.", "href": "/import?kind=findings", "action": "Import findings"},
+        {"key": "kev", "done": "kev" in kinds,
+         "title": "Load known-exploited vulnerabilities", "text": "Fetch the official CISA KEV catalog (one explicit download).", "href": "/sources#fetch", "action": "Fetch KEV"},
+        {"key": "epss", "done": "epss" in kinds,
+         "title": "Add exploit likelihood (optional)", "text": "Fetch FIRST EPSS scores for the CVEs you track. Used for ordering only.", "href": "/sources#fetch", "action": "Fetch EPSS"},
+        {"key": "observations", "done": "sensor" in kinds,
+         "title": "Add what your sensors saw (optional)", "text": "IDS/WAF events as JSONL. Attacks on your own assets change decisions first.", "href": "/import?kind=observations", "action": "Import observations"},
+    ]
+    return {"steps": steps, "done": sum(1 for x in steps if x["done"]), "core_done": all(x["done"] for x in steps[:3])}
+
+
+def home(s: Session, period_key: str | None, scope: str = "mine") -> dict[str, Any]:
     p = parse_period(s, period_key)
+    mine = scope != "all"
+    relevant = relevant_vulnerabilities(s)
     deltas = list(s.execute(select(IntelligenceDelta).order_by(IntelligenceDelta.seq.desc())).scalars())
+    if mine:
+        deltas = [d for d in deltas if d.vulnerability_id in relevant]
     in_period = [d for d in deltas if p.contains(d.created_at)]
     attempts = list(
         s.execute(
@@ -246,25 +281,25 @@ def home(s: Session, period_key: str | None) -> dict[str, Any]:
     kpis = [
         {
             "key": "changes",
-            "label": "New intel changes",
+            "label": "Threat changes",
             "value": len(in_period),
-            "definition": "Meaningful intelligence deltas (reposts and refetches excluded)",
-            "href": f"/threats?period={p.key}&changed=1",
+            "definition": ("For threats that touch your assets" if mine else "Across all tracked threats") + ". Reposts and refetches are not counted",
+            "href": f"/threats?period={p.key}&changed=1&scope={'mine' if mine else 'all'}",
             "previous": comparison["changes"] if comparison else None,
         },
         {
             "key": "attempts",
-            "label": "Local attempts",
+            "label": "Attacks on your sensors",
             "value": len(attempts_in),
-            "definition": f"Deduplicated exploit attempts ({sum(1 for o in attempts_in if o.mapping_status != 'unconfirmed')} mapped to a vulnerability). Scans excluded",
+            "definition": f"Exploit attempts, deduplicated ({sum(1 for o in attempts_in if o.mapping_status != 'unconfirmed')} tied to a known CVE). Scans not counted",
             "href": f"/observations?period={p.key}&event_type=exploit_attempt",
             "previous": comparison["attempts"] if comparison else None,
         },
         {
             "key": "reassess",
-            "label": "Assets to reassess",
+            "label": "Assets to check",
             "value": len(reassess_assets),
-            "definition": "Distinct assets whose latest decision is investigate",
+            "definition": "Assets where something must be confirmed before deciding",
             "href": "/assets?action=investigate",
             "previous": None,
         },
@@ -272,13 +307,15 @@ def home(s: Session, period_key: str | None) -> dict[str, Any]:
             "key": "questions",
             "label": "Open questions",
             "value": open_tasks,
-            "definition": "Open investigation tasks",
+            "definition": "Specific checks that would settle undecided cases",
             "href": "/investigations",
             "previous": None,
         },
     ]
 
     assessments = latest_assessments(s)
+    if mine:
+        assessments = {k: v for k, v in assessments.items() if k in relevant}
     status_counts = Counter(evidence_status(a.state_json) for a in assessments.values())
     evidence = [{"status": k, "count": status_counts.get(k, 0)} for k in EVIDENCE_STATUS_ORDER]
 
@@ -300,6 +337,9 @@ def home(s: Session, period_key: str | None) -> dict[str, Any]:
 
     return {
         "period": p,
+        "scope": "mine" if mine else "all",
+        "relevant_count": len(relevant),
+        "setup": setup_status(s),
         "kpis": kpis,
         "comparison": comparison,
         "activity": activity_series(s, p),
@@ -437,8 +477,10 @@ def threats(
     changed_only: bool = False,
     cursor: str | None = None,
     limit: int = 50,
+    scope: str = "mine",
 ) -> dict[str, Any]:
     p = parse_period(s, period_key)
+    relevant = relevant_vulnerabilities(s) if scope != "all" else None
     assessments = latest_assessments(s)
     decisions = current_decisions(s)
     findings_by_vuln: dict[str, list[Finding]] = defaultdict(list)
@@ -455,6 +497,8 @@ def threats(
     rows = []
     for v in s.execute(select(Vulnerability).order_by(Vulnerability.id)).scalars():
         if after and v.id <= after:
+            continue
+        if relevant is not None and v.id not in relevant:
             continue
         a = assessments.get(v.id)
         st = a.state_json if a else None
@@ -489,7 +533,7 @@ def threats(
     if len(rows) > limit:
         rows = rows[:limit]
         next_cursor = _encode_cursor(rows[-1]["id"])
-    return {"items": rows, "next_cursor": next_cursor, "period": p}
+    return {"items": rows, "next_cursor": next_cursor, "period": p, "scope": "all" if relevant is None else "mine"}
 
 
 def claim_rows(s: Session, vid: str) -> list[dict[str, Any]]:

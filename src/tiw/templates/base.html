@@ -31,6 +31,7 @@
     <div class="nav nav-bottom">
       <a href="/import" {% if nav == "import" %}aria-current="page"{% endif %} aria-label="Import">{{ icon("import") }}<span class="label">Import</span><span class="tip" aria-hidden="true">Import</span></a>
       <a href="/sources" {% if nav == "sources" %}aria-current="page"{% endif %} aria-label="Sources &amp; Health{% if health_problem %} (attention needed){% endif %}">{{ icon("sources") }}<span class="label">Sources &amp; Health</span>{% if health_problem %}<span class="dot-warn" title="A source is stale or failing"></span>{% endif %}<span class="tip" aria-hidden="true">Sources &amp; Health</span></a>
+      <a href="/guide" {% if nav == "guide" %}aria-current="page"{% endif %} aria-label="How it works">{{ icon("info") }}<span class="label">How it works</span><span class="tip" aria-hidden="true">How it works</span></a>
       <a href="/settings" {% if nav == "settings" %}aria-current="page"{% endif %} aria-label="Settings">{{ icon("settings") }}<span class="label">Settings</span><span class="tip" aria-hidden="true">Settings</span></a>
     </div>
   </nav>

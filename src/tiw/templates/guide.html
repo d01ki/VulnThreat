@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("How it works", "Threat Workbench answers one question: which of my assets need action now, and why?", info, show_import=False) }}
+
+<section class="card" aria-labelledby="flow-h">
+  <div class="card-head"><div><h2 id="flow-h">From evidence to a decision</h2><p class="sub">Every step is stored, so any decision can be traced back and compared with the one it replaced</p></div></div>
+  <ol class="flow">
+    <li><span class="flow-k">You load</span><strong>Assets and their vulnerabilities</strong><span class="secondary">From your inventory and scanner (CSV). Includes whether each asset faces the internet and how critical it is.</span></li>
+    <li><span class="flow-k">It collects</span><strong>Evidence of exploitation</strong><span class="secondary">The CISA KEV catalog, EPSS scores, reviewed advisories, and attacks your own sensors saw. Each item keeps its source and version.</span></li>
+    <li><span class="flow-k">It judges</span><strong>The threat, one axis at a time</strong><span class="secondary">Confirmed or only reported? Attacked here or elsewhere? Independent sources or one rumour reposted ten times? Nothing is merged into a score.</span></li>
+    <li><span class="flow-k">It decides</span><strong>An action for each asset</strong><span class="secondary">Respond to an incident, patch, investigate, or monitor, with an urgency, the rule that applied, and what is still unconfirmed.</span></li>
+    <li><span class="flow-k">It explains</span><strong>What changed and why</strong><span class="secondary">When evidence changes, the affected decisions are recomputed and shown before and after. Decisions that are not affected stay as they are.</span></li>
+  </ol>
+</section>
+
+<div class="grid" data-x="mt5">
+  <section class="card span-6" aria-labelledby="ans-h">
+    <div class="card-head"><div><h2 id="ans-h">Where to find answers</h2></div></div>
+    <ul class="reason-list">
+      <li><a href="/">Threat Changes</a><br><span class="secondary">What changed recently and which decisions it moved.</span></li>
+      <li><a href="/assets">Affected Assets</a><br><span class="secondary">The current action and urgency for every asset, with reasons.</span></li>
+      <li><a href="/investigations">Investigation Queue</a><br><span class="secondary">The few checks that would settle the most undecided cases.</span></li>
+      <li><a href="/threats">Threats</a><br><span class="secondary">The evidence behind each vulnerability, including retracted or disputed claims.</span></li>
+      <li><a href="/sources">Sources &amp; Health</a><br><span class="secondary">Is the data fresh? Did a download fail? Stale data is flagged, never silently dropped.</span></li>
+    </ul>
+  </section>
+  <section class="card span-6" aria-labelledby="rules-h">
+    <div class="card-head"><div><h2 id="rules-h">Rules it never breaks</h2></div></div>
+    <ul class="reason-list">
+      <li><strong>Unknown is not safe.</strong><br><span class="secondary">Missing applicability, exposure or EPSS leads to "investigate", never to "monitor".</span></li>
+      <li><strong>A scan is not an attack, and an alert is not a breach.</strong><br><span class="secondary">Only a reviewed confirmation counts as a compromise.</span></li>
+      <li><strong>Reposts are not new evidence.</strong><br><span class="secondary">Articles citing the same source count as one.</span></li>
+      <li><strong>History is never rewritten.</strong><br><span class="secondary">Corrections and reviews are added; old versions remain.</span></li>
+      <li><strong>Nothing leaves this machine.</strong><br><span class="secondary">The only outbound requests are KEV/EPSS downloads that you start.</span></li>
+    </ul>
+  </section>
+</div>
+
+<section class="card" data-x="mt5" aria-labelledby="tpl-h">
+  <div class="card-head"><div><h2 id="tpl-h">Start with your own data</h2><p class="sub">{{ setup.done }} of {{ setup.steps | length }} setup steps done</p></div></div>
+  <ol class="setup-steps">
+    {% for st in setup.steps %}
+    <li class="{{ 'done' if st.done else '' }}">
+      <span class="step-mark" aria-hidden="true">{% if st.done %}{{ icon("check", "icon icon-sm") }}{% else %}{{ loop.index }}{% endif %}</span>
+      <div class="step-body"><strong>{{ st.title }}</strong>{% if st.done %}<span class="sr-only"> (done)</span>{% endif %}<span class="secondary small">{{ st.text }}</span></div>
+      <a class="btn btn-sm{{ ' btn-ghost' if st.done else '' }}" href="{{ st.href }}">{{ st.action }}</a>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="chart-notes">Templates: <a href="/import/template/assets">assets.csv</a>, <a href="/import/template/findings">findings.csv</a>, <a href="/import/template/observations">observations.jsonl</a></p>
+</section>
+{% endblock %}
