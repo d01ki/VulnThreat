@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Affected Assets", "Current policy-v1 decision for every asset and vulnerability pair, with the conditions it rests on. Ordered by urgency, then criticality, then fresh EPSS.", info) }}
+
+<div class="filters">
+  <nav class="segmented" aria-label="Urgency">
+    <a href="{{ url(urgency=None) }}" {% if not urgency %}aria-current="true"{% endif %}>All</a>
+    {% for u in ["urgent", "high", "normal", "low"] %}<a href="{{ url(urgency=u) }}" {% if urgency == u %}aria-current="true"{% endif %}>{{ u | capitalize }}</a>{% endfor %}
+  </nav>
+  <form method="get" action="/assets" role="search">
+    {% if urgency %}<input type="hidden" name="urgency" value="{{ urgency }}">{% endif %}
+    <label for="action" class="sr-only">Action</label>
+    <select id="action" name="action" data-autosubmit>
+      <option value="">Any action</option>
+      {% for a in ["incident_response", "remediate", "investigate", "monitor"] %}<option value="{{ a }}" {% if action == a %}selected{% endif %}>{{ a | replace("_", " ") | capitalize }}</option>{% endfor %}
+    </select>
+    {% if vulnerability %}<input type="hidden" name="vulnerability" value="{{ vulnerability }}">{% endif %}
+    <label for="q" class="sr-only">Search assets</label>
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="Asset, finding or vulnerability" maxlength="100">
+    <button class="btn btn-sm" type="submit">Apply</button>
+    {% if vulnerability %}<a class="btn btn-sm btn-ghost" href="/assets">Clear {{ vulnerability }}</a>{% endif %}
+  </form>
+</div>
+
+<section class="card card-flush" aria-label="Asset decisions">
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Asset</th><th scope="col">Threat</th><th scope="col">Applicability</th><th scope="col">Exposure</th><th scope="col">Decision</th><th scope="col">Why</th><th scope="col">Unconfirmed</th><th scope="col"><span class="sr-only">Diff</span></th></tr></thead>
+    <tbody>{% for r in rows %}{% set dd = r.decision %}
+    <tr>
+      <td><span class="mono">{{ r.finding.asset_id }}</span><span class="line2">{{ r.asset.name if r.asset else "" }}{% if dd %} · {{ dd.inputs_json.criticality }}{% endif %}</span></td>
+      <td>{{ m.vid(r.finding.vulnerability_id) }}<span class="line2">{% if dd %}public {{ dd.inputs_json.public_exploitation }}; local {{ dd.inputs_json.local_activity_on_asset | replace("_", " ") }}{% endif %}</span></td>
+      <td>{% if dd %}{{ dd.inputs_json.applicability.effective | replace("_", " ") }}{% if dd.inputs_json.applicability.expires_at %}<span class="line2">until {{ dd.inputs_json.applicability.expires_at | t("%Y-%m-%d") }}</span>{% endif %}{% else %}—{% endif %}</td>
+      <td>{% if dd %}{{ dd.inputs_json.exposure.effective }}{% if dd.inputs_json.exposure.expires_at %}<span class="line2">until {{ dd.inputs_json.exposure.expires_at | t("%Y-%m-%d") }}</span>{% endif %}{% else %}—{% endif %}</td>
+      <td>{{ m.urgency(dd.urgency if dd else None) }}<span class="line2">{{ m.action(dd.action if dd else None) }}</span></td>
+      <td class="small">{% for code, text in r.reasons %}<span class="tag" title="{{ text }}">{{ code }}</span>{% endfor %}</td>
+      <td class="r num">{{ dd.unknowns_json | length if dd else "—" }}</td>
+      <td>{% if dd %}<a href="/decisions/{{ dd.id }}">{{ "Diff" if dd.previous_id else "Details" }}</a>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <div class="pad">
+    {% if info.has_data %}{{ m.empty("No assets match these filters", "Clear the filters to see every decision.", "/assets", "Clear filters") }}
+    {% else %}{{ m.empty("No assets imported", "Import an asset CSV and a findings CSV to get asset-level decisions.", "/import?kind=assets", "Import assets") }}{% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="card" data-x="mt5" aria-labelledby="unm-h">
+  <div class="card-head"><div><h2 id="unm-h">Activity without a confirmed vulnerability mapping</h2><p class="sub">Shown separately so it is not mistaken for evidence about a specific vulnerability</p></div><a class="btn btn-sm btn-ghost" href="/observations">Observations</a></div>
+  {% if unmapped %}
+  <ul class="list">{% for o in unmapped %}<li class="row small"><span><span class="mono">{{ o.asset_id or "unknown asset" }}</span> · {{ o.event_type | replace("_", " ") }} · {{ o.evidence_json.get("rule_id", "no rule id") }}</span><span class="muted num">{{ o.observed_at | t }}</span></li>{% endfor %}</ul>
+  {% else %}{{ m.empty("Nothing unmapped", "All imported observations have a confirmed mapping.") }}{% endif %}
+</section>
+{% endblock %}

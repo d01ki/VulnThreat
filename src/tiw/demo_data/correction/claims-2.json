@@ -1,0 +1,25 @@
+{
+ "schema_version": "1.0",
+ "synthetic": true,
+ "source": {
+  "name": "Synthetic research lab",
+  "kind": "advisory",
+  "license_note": "Authored for the demo"
+ },
+ "documents": [
+  {
+   "external_id": "lab/blog-2026-10-02-correction",
+   "title": "Correction: honeynet traffic was misattributed (synthetic)",
+   "published_at": "2026-10-02T09:00:00Z",
+   "text": "Our earlier post misattributed honeynet traffic to DEMO-VULN-004. We retract the exploitation claim.",
+   "claims": [],
+   "retractions": [
+    {
+     "claim_key": "d-report",
+     "reason": "Publisher retracted: honeynet traffic was misattributed",
+     "reviewer": "demo-analyst"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+{
+ "schema_version": "1.0",
+ "synthetic": true,
+ "source": {
+  "name": "Synthetic research lab",
+  "kind": "advisory",
+  "license_note": "Authored for the demo"
+ },
+ "documents": [
+  {
+   "external_id": "lab/blog-2026-09-30",
+   "title": "Exploitation of DEMO-VULN-004 observed in our honeynet (synthetic)",
+   "published_at": "2026-09-30T12:00:00Z",
+   "text": "We observed exploitation of DEMO-VULN-004 in our research honeynet.",
+   "claims": [
+    {
+     "claim_key": "d-report",
+     "subject_id": "DEMO-VULN-004",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "We observed exploitation of DEMO-VULN-004",
+     "locator": "paragraph 1",
+     "origin": "primary",
+     "review_state": "reviewed",
+     "reviewer": "demo-analyst",
+     "review_reason": "First-hand honeynet report with technical indicators"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{% set dd = x.decision %}{% set pv = x.previous %}
+<p class="crumbs"><a href="/assets">Affected Assets</a> / <a href="/threats/{{ x.finding.vulnerability_id }}?tab=decisions">{{ x.finding.vulnerability_id }}</a> / decision</p>
+<div class="page-head">
+  <div>
+    <h1>Decision Diff</h1>
+    <p class="lede"><span class="mono">{{ x.finding.asset_id }}</span> ({{ x.asset.name if x.asset else "" }}) for {{ m.vid(x.finding.vulnerability_id) }} · finding <span class="mono">{{ x.finding.id }}</span></p>
+  </div>
+  <div class="head-actions">
+    {% if pv %}<span class="arrow-pair">{{ m.urgency(pv.urgency) }}{{ icon("arrow", "icon icon-sm muted") }}<span class="sr-only">changed to</span>{{ m.urgency(dd.urgency) }}</span>{% else %}{{ m.urgency(dd.urgency) }}{% endif %}
+    <span class="badge plain secondary">{{ dd.policy_version }}</span>
+    {{ m.mode_badge(info) }}
+  </div>
+</div>
+
+<section class="card why" aria-labelledby="why-h" data-x="mb5">
+  <div class="card-head"><div><h2 id="why-h">Why this changed</h2><p class="sub">Computed {{ dd.created_at | t }}{% if pv %}; previous decision {{ pv.created_at | t }}{% endif %}</p></div></div>
+  <ul>{% for w in x.why %}<li>{{ w }}</li>{% endfor %}</ul>
+  {% if x.triggers %}
+  <div class="chain" data-x="mt4">
+    {% for tr in x.triggers %}<div class="link k-delta"><div class="row"><span><strong>{{ DELTA_LABELS.get(tr.change_type, tr.change_type) }}</strong> <span class="secondary">{{ tr.reasons_json.summary }}</span></span><span class="when">{{ tr.created_at | t }}</span></div></div>{% endfor %}
+    <div class="link k-decision"><div class="row"><span><strong>{{ dd.action | replace("_", " ") | capitalize }} / {{ dd.urgency }}</strong> <span class="secondary">{{ RULE_TITLES[dd.rule] }}</span></span><span class="when">{{ dd.created_at | t }}</span></div></div>
+  </div>
+  {% endif %}
+</section>
+
+<section aria-labelledby="cmp-h">
+  <h2 id="cmp-h" class="sr-only">Before and after</h2>
+  <div class="diff" role="table" aria-label="Decision inputs before and after">
+    <div class="h" role="columnheader">Condition</div><div class="h col-label" role="columnheader">Before{% if not pv %} (no previous decision){% endif %}</div><div class="h col-label" role="columnheader">After</div>
+    {% for r in x.rows %}
+      {% set last = " last" if loop.last else "" %}
+      <div class="f{{ last }}" role="rowheader">{{ r.label }}{% if r.changed %}<span class="sr-only"> (changed)</span>{% endif %}</div>
+      <div class="before{{ ' changed' if r.changed else '' }}{{ last }}" role="cell">{{ "—" if r.before is none else r.before }}</div>
+      <div class="after{{ ' changed' if r.changed else '' }}{{ last }}" role="cell">{{ r.after }}</div>
+    {% endfor %}
+  </div>
+  <p class="chart-notes">{{ x.changed_rows | length }} condition(s) changed; {{ x.unchanged_rows | length }} unchanged and shown for completeness. Highlighted rows changed.</p>
+</section>
+
+<div class="two-col" data-x="mt5">
+  <section class="card" aria-labelledby="rs-h">
+    <div class="card-head"><div><h2 id="rs-h">Reason codes now</h2><p class="sub">The first code is the matched rule; the rest are context only</p></div></div>
+    <ul class="reason-list">{% for code, text in x.reason_text %}<li><code>{{ code }}</code><br><span class="secondary">{{ text }}</span></li>{% endfor %}</ul>
+  </section>
+  <section class="card" aria-labelledby="un-h">
+    <div class="card-head"><div><h2 id="un-h">Unconfirmed conditions</h2><p class="sub">Checks that would make this decision more certain</p></div></div>
+    {% if dd.unknowns_json %}
+    <ul class="reason-list">{% for u in dd.unknowns_json %}<li><strong>{{ u.detail }}</strong><br><span class="secondary">{{ u.check }}</span></li>{% endfor %}</ul>
+    {% else %}{{ m.empty("Nothing unconfirmed", "All inputs to this decision are recorded and current.") }}{% endif %}
+  </section>
+</div>
+
+<div class="two-col" data-x="mt5">
+  <section class="card" aria-labelledby="ea-h">
+    <div class="card-head"><div><h2 id="ea-h">Evidence added</h2></div></div>
+    {% if x.evidence_added %}<ul class="list">{% for e in x.evidence_added %}<li class="small"><span class="tag">{{ e.type }}</span> {{ e.label }} <span class="mono muted">{{ e.id | short }}</span>{% if e.quote %}<blockquote class="quote">{{ e.quote }}</blockquote>{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p class="secondary small">No evidence added.</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="er-h">
+    <div class="card-head"><div><h2 id="er-h">Evidence no longer used</h2></div></div>
+    {% if x.evidence_removed %}<ul class="list">{% for e in x.evidence_removed %}<li class="small"><span class="tag">{{ e.type }}</span> {{ e.label }} <span class="mono muted">{{ e.id | short }}</span></li>{% endfor %}</ul>
+    {% else %}<p class="secondary small">Nothing was removed.</p>{% endif %}
+  </section>
+</div>
+
+<section class="card" data-x="mt5" aria-labelledby="hist-h">
+  <div class="card-head"><div><h2 id="hist-h">Decision history for this finding</h2><p class="sub">Past decisions are never overwritten</p></div></div>
+  <div class="chain">
+    {% for h in x.history %}
+    <div class="link k-decision"><div class="row"><span>{% if h.id == dd.id %}<strong>{{ h.action | replace("_", " ") }} / {{ h.urgency }}</strong> <span class="muted">(this decision)</span>{% else %}<a href="/decisions/{{ h.id }}">{{ h.action | replace("_", " ") }} / {{ h.urgency }}</a>{% endif %} <span class="secondary small">{{ RULE_TITLES[h.rule] }}</span></span><span class="when">{{ h.created_at | t }}</span></div></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

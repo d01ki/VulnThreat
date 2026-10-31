@@ -1,0 +1,2 @@
+finding_id,asset_id,vulnerability_id,applicability,observed_at,rationale,evidence_ref,reviewer,expires_at,synthetic
+f-b-web,asset-b-web,DEMO-VULN-002,affected,2026-10-01T00:00:00Z,,,,,true

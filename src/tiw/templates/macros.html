@@ -1,0 +1,57 @@
+{% macro urgency(u) -%}
+{%- if u -%}<span class="badge plain u-{{ u }}">{{ u }}</span>{%- else -%}<span class="muted">—</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro action(a) -%}
+{%- if a -%}<span class="secondary">{{ a | replace("_", " ") }}</span>{%- else -%}<span class="muted">not evaluated</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro estatus(s) -%}
+{%- set labels = {"confirmed": "Confirmed", "reported": "Reported", "unknown": "Unknown", "conflict": "Conflict"} -%}
+<span class="badge e-{{ s }}">{{ labels.get(s, s) }}</span>
+{%- endmacro %}
+
+{% macro health(s) -%}
+{%- set labels = {"ok": "OK", "stale": "Stale", "failed": "Last import failed"} -%}
+<span class="badge s-{{ s }}">{{ labels.get(s, s) }}</span>
+{%- endmacro %}
+
+{% macro mode_badge(info) -%}
+{%- if info.synthetic -%}<span class="badge b-synthetic" title="All data is synthetic">Synthetic</span>{%- else -%}<span class="badge b-live">Live</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro period_picker(url, current) -%}
+<nav class="segmented" aria-label="Period">
+  {%- for k, label in [("24h", "24 h"), ("7d", "7 days"), ("30d", "30 days"), ("all", "All")] -%}
+  <a href="{{ url(period=k, cursor=None) }}" {% if current == k %}aria-current="true"{% endif %}>{{ label }}</a>
+  {%- endfor -%}
+</nav>
+{%- endmacro %}
+
+{% macro page_head(title, lede, info, period=None, url=None, show_import=True) -%}
+<div class="page-head">
+  <div>
+    <h1>{{ title }}</h1>
+    {% if lede %}<p class="lede">{{ lede }}</p>{% endif %}
+  </div>
+  <div class="head-actions">
+    {% if period %}{{ period_picker(url, period) }}{% endif %}
+    <span class="badge plain small secondary" title="Last successful import">{{ icon("clock", "icon icon-sm") }} Updated {{ info.last_update | rel }}</span>
+    {{ mode_badge(info) }}
+    {% if show_import %}<a class="btn btn-primary" href="/import">{{ icon("import", "icon icon-sm") }} Import</a>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro empty(title, text, primary_href=None, primary_label=None, secondary_href=None, secondary_label=None) -%}
+<div class="empty">
+  <h3>{{ title }}</h3>
+  <p>{{ text }}</p>
+  {% if primary_href or secondary_href %}<div class="actions">
+    {% if primary_href %}<a class="btn btn-primary btn-sm" href="{{ primary_href }}">{{ primary_label }}</a>{% endif %}
+    {% if secondary_href %}<a class="btn btn-sm" href="{{ secondary_href }}">{{ secondary_label }}</a>{% endif %}
+  </div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro vid(v) -%}<a class="mono" href="/threats/{{ v }}">{{ v }}</a>{%- endmacro %}

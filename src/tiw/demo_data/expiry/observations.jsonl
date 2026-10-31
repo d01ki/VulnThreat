@@ -1,0 +1,1 @@
+{"schema_version": "1.0", "sensor_id": "demo-sensor", "external_event_id": "event-c-001", "observed_at": "2026-10-02T09:30:00Z", "asset_id": "asset-c-batch", "event_type": "exploit_attempt", "mapping_status": "reviewer_confirmed", "evidence": {"rule_id": "demo-rule-3", "request_fingerprint": "sha256:demo-c"}, "synthetic": true, "vulnerability_id": "DEMO-VULN-003"}

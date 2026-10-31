@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Import", ("2. Validation result" if stage == "validate" else "3. Import result") ~ " for " ~ kind ~ (" (" ~ filename ~ ")" if filename else ""), info, show_import=False) }}
+
+{% if error %}
+  <div class="callout err" role="alert">{{ icon("alert") }}<span><strong>The file was rejected.</strong> {{ error }}</span></div>
+  <a class="btn" href="/import?kind={{ kind }}">Choose another file</a>
+{% elif out.status == "duplicate" %}
+  <div class="callout" role="status">{{ icon("info") }}<span><strong>Already imported.</strong> An identical file was imported before with the same adapter version, so nothing changed.</span></div>
+  <a class="btn" href="/sources">View import runs</a>
+{% elif out.status == "failed" %}
+  <div class="callout err" role="alert">{{ icon("alert") }}<span><strong>{{ out.rejected }} problem(s) found. Nothing was written.</strong> Fix the rows below and validate again{% if stage == "validate" %}, or allow partial import{% endif %}.</span></div>
+{% elif out.status == "validated" %}
+  <div class="callout ok" role="status">{{ icon("check") }}<span><strong>Validation passed.</strong> {{ out.accepted }} record(s) ready, {{ out.duplicates }} already known{% if out.quarantined %}, {{ out.quarantined }} to be quarantined (future timestamps){% endif %}{% if out.rejected %}, {{ out.rejected }} row(s) will be skipped{% endif %}.</span></div>
+  <form method="post" action="/import/commit" data-busy="Importing…" class="filters">
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+    <input type="hidden" name="kind" value="{{ kind }}">
+    <input type="hidden" name="sha" value="{{ sha }}">
+    {% if allow_partial %}<input type="hidden" name="allow_partial" value="1">{% endif %}
+    <button class="btn btn-primary" type="submit">Import {{ out.accepted }} record(s)</button>
+    <a class="btn btn-ghost" href="/import?kind={{ kind }}">Cancel</a>
+    <p id="form-status" class="sr-only" role="status" aria-live="polite"></p>
+  </form>
+  {% if out.affected_vulnerabilities %}<p class="chart-notes">Will re-evaluate: {% for v in out.affected_vulnerabilities %}<span class="tag">{{ v }}</span>{% endfor %}</p>{% endif %}
+{% elif out.status == "succeeded" %}
+  <div class="callout ok" role="status">{{ icon("check") }}<span><strong>Imported.</strong> {{ out.accepted }} record(s) accepted, {{ out.duplicates }} duplicate(s) skipped{% if out.quarantined %}, {{ out.quarantined }} quarantined{% endif %}. Recompute created {{ out.recompute.assessments }} assessment(s), {{ out.recompute.deltas }} change(s) and {{ out.recompute.decisions }} decision(s).</span></div>
+  <div class="filters"><a class="btn btn-primary" href="/">View Threat Changes</a><a class="btn" href="/import">Import another file</a></div>
+{% endif %}
+
+{% if out and out.errors %}
+<section class="card card-flush" data-x="mt5" aria-labelledby="err-h">
+  <div class="card-head"><div><h2 id="err-h">Rejected rows</h2><p class="sub">Values are not echoed back, so secrets in a bad row are not displayed</p></div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col" class="r">Line</th><th scope="col">Field</th><th scope="col">Reason</th></tr></thead>
+    <tbody>{% for e in out.errors %}<tr><td class="r num">{{ e.line if e.line is not none else "—" }}</td><td class="mono small">{{ e.field or "—" }}</td><td>{{ e.reason }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

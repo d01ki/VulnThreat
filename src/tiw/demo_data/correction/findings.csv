@@ -1,0 +1,3 @@
+finding_id,asset_id,vulnerability_id,applicability,observed_at,rationale,evidence_ref,reviewer,expires_at,synthetic
+f-d-portal,asset-d-portal,DEMO-VULN-004,affected,2026-10-01T00:00:00Z,,,,,true
+f-d-erp,asset-d-erp,DEMO-VULN-005,affected,2026-10-01T00:00:00Z,,,,,true

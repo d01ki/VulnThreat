@@ -1,0 +1,261 @@
+{
+ "schema_version": "1.0",
+ "synthetic": true,
+ "source": {
+  "name": "Synthetic news network",
+  "kind": "advisory",
+  "license_note": "Authored for the demo; not real reporting"
+ },
+ "documents": [
+  {
+   "external_id": "news-1/repost",
+   "title": "Repost 1: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T01:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-1",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-2/repost",
+   "title": "Repost 2: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T02:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-2",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-3/repost",
+   "title": "Repost 3: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T03:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-3",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-4/repost",
+   "title": "Repost 4: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T04:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-4",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-5/repost",
+   "title": "Repost 5: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T05:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-5",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-6/repost",
+   "title": "Repost 6: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T06:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-6",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-7/repost",
+   "title": "Repost 7: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T07:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-7",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-8/repost",
+   "title": "Repost 8: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T08:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-8",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-9/repost",
+   "title": "Repost 9: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T09:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-9",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "external_id": "news-10/repost",
+   "title": "Repost 10: DEMO-VULN-002 exploited? (synthetic)",
+   "published_at": "2026-10-03T10:00:00Z",
+   "text": "Citing the earlier report, this article repeats that DEMO-VULN-002 is exploited.",
+   "claims": [
+    {
+     "claim_key": "b-repost-10",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "repeats that DEMO-VULN-002 is exploited",
+     "locator": "paragraph 1",
+     "origin": "secondary",
+     "review_state": "unreviewed",
+     "relations": [
+      {
+       "kind": "cites",
+       "to": "b-root",
+       "verification": "explicit"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

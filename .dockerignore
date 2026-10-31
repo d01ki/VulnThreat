@@ -1,0 +1,6 @@
+.venv
+.tiw
+.tiw-demo
+.git
+tests
+**/__pycache__

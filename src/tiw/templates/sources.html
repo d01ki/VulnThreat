@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Sources & Health", "When each input last updated successfully, what failed, and what the sensors actually covered. A failed or stale source never deletes evidence that is already known.", info) }}
+
+<section class="card card-flush" aria-labelledby="src-h">
+  <div class="card-head"><div><h2 id="src-h">Sources</h2><p class="sub">Freshness policy: KEV 7 days, EPSS 72 h, asset records by their own expiry. These are product defaults, not scientific thresholds.</p></div></div>
+  {% if health %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Source</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col">Last successful update</th><th scope="col">Last failure</th><th scope="col" class="r">Revisions</th><th scope="col">Limit</th></tr></thead>
+    <tbody>{% for h in health %}
+      <tr>
+        <td>{{ h.name }}{% if h.synthetic %} <span class="badge b-synthetic">Synthetic</span>{% endif %}</td>
+        <td class="secondary">{{ h.kind | replace("_", " ") }}</td>
+        <td>{{ m.health(h.status) }}</td>
+        <td class="nowrap num">{{ h.last_successful_update | t }}<span class="line2">{{ h.last_successful_update | rel }}</span></td>
+        <td>{% if h.last_failure %}<span class="num">{{ h.last_failure | t }}</span><span class="line2">{{ h.last_failure_reason }}</span>{% else %}<span class="muted">none</span>{% endif %}</td>
+        <td class="r num">{{ h.revisions }}</td>
+        <td class="secondary">{{ h.freshness_limit }}</td>
+      </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="pad-b">{{ m.empty("No sources yet", "Sources are registered by the first successful import.", "/import", "Import a file") }}</div>{% endif %}
+</section>
+
+<section class="card card-flush" data-x="mt5" aria-labelledby="runs-h">
+  <div class="card-head"><div><h2 id="runs-h">Import runs</h2><p class="sub">Most recent first. Re-importing an identical file is recognised by its hash and adapter version and changes nothing.</p></div><a class="btn btn-sm" href="/import">{{ icon("import", "icon icon-sm") }} Import</a></div>
+  {% if runs %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Started</th><th scope="col">Adapter</th><th scope="col">Status</th><th scope="col" class="r">Accepted</th><th scope="col" class="r">Duplicates</th><th scope="col" class="r">Rejected</th><th scope="col">Errors</th><th scope="col">Input hash</th></tr></thead>
+    <tbody>{% for r in runs %}
+      <tr>
+        <td class="nowrap num">{{ r.started_at | t }}</td>
+        <td class="secondary">{{ r.adapter }} <span class="muted small">{{ r.adapter_version }}</span></td>
+        <td>{% if r.status == "succeeded" %}<span class="badge s-ok">Succeeded</span>{% else %}<span class="badge s-failed">Failed</span>{% endif %}</td>
+        <td class="r num">{{ r.accepted }}</td><td class="r num">{{ r.duplicates }}</td><td class="r num">{{ r.rejected }}</td>
+        <td class="small">{% for e in r.errors_json[:3] %}<span class="line2">{% if e.line %}line {{ e.line }}{% endif %}{% if e.field %} {{ e.field }}{% endif %}: {{ e.reason }}</span>{% endfor %}{% if r.errors_json | length > 3 %}<span class="line2">and {{ r.errors_json | length - 3 }} more</span>{% endif %}{% if not r.errors_json %}<span class="muted">none</span>{% endif %}</td>
+        <td><span class="mono small muted">{{ r.input_sha256 | short(12) }}</span> <button class="btn btn-ghost btn-sm" type="button" data-copy="{{ r.input_sha256 }}" aria-label="Copy full hash">Copy</button></td>
+      </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="pad-b">{{ m.empty("No imports yet", "Each import is recorded here with its counts and any rejected rows.", "/import", "Import a file") }}</div>{% endif %}
+</section>
+
+<div class="two-col" data-x="mt5">
+  <section class="card" aria-labelledby="cov-h">
+    <div class="card-head"><div><h2 id="cov-h">Sensor coverage</h2><p class="sub">Outages break the activity chart instead of reading as zero</p></div></div>
+    {% if windows %}<ul class="list">{% for w in windows %}<li class="row small"><span><span class="mono">{{ w.sensor_id }}</span> {{ w.start | t }} to {{ w.end | t }}</span>{% if w.status == "ok" %}<span class="badge s-ok">Collecting</span>{% else %}<span class="badge s-failed">Outage</span>{% endif %}</li>{% endfor %}</ul>
+    {% else %}{{ m.empty("Coverage not recorded", "Without sensor windows, absence of observations cannot be interpreted.") }}{% endif %}
+  </section>
+  <section class="card" aria-labelledby="qr-h">
+    <div class="card-head"><div><h2 id="qr-h">Quarantined observations</h2><p class="sub">Future timestamps beyond 5 minutes of clock skew</p></div></div>
+    {% if quarantined %}<ul class="list">{% for o in quarantined %}<li class="small"><span class="mono">{{ o.sensor_id }}</span> · {{ o.observed_at | t }} · {{ o.quarantine_reason }}</li>{% endfor %}</ul>
+    {% else %}<p class="secondary small">None.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
