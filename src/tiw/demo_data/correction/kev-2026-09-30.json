@@ -1,0 +1,21 @@
+{
+ "title": "Synthetic KEV-format catalog (demo)",
+ "catalogVersion": "2026.09.30",
+ "dateReleased": "2026-09-30T00:00:00Z",
+ "count": 1,
+ "synthetic": true,
+ "vulnerabilities": [
+  {
+   "cveID": "DEMO-VULN-005",
+   "vendorProject": "DemoVendor",
+   "product": "Demo ERP",
+   "vulnerabilityName": "Demo ERP deserialization flaw (synthetic)",
+   "dateAdded": "2026-09-30",
+   "shortDescription": "Synthetic entry used by the demo.",
+   "requiredAction": "Apply vendor update or mitigations (synthetic).",
+   "dueDate": "2026-10-24",
+   "knownRansomwareCampaignUse": "Unknown",
+   "notes": ""
+  }
+ ]
+}

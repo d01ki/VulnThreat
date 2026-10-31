@@ -1,0 +1,31 @@
+{
+ "schema_version": "1.0",
+ "synthetic": true,
+ "source": {
+  "name": "Synthetic vendor PSIRT",
+  "kind": "advisory",
+  "license_note": "Authored for the demo"
+ },
+ "documents": [
+  {
+   "external_id": "psirt/DEMO-2026-002",
+   "title": "Vendor confirms in-the-wild exploitation of DEMO-VULN-002 (synthetic)",
+   "published_at": "2026-10-04T09:00:00Z",
+   "text": "The vendor has confirmed limited exploitation of DEMO-VULN-002 against internet-facing deployments, based on its own incident response.",
+   "claims": [
+    {
+     "claim_key": "b-psirt",
+     "subject_id": "DEMO-VULN-002",
+     "predicate": "exploited_in_wild",
+     "value": true,
+     "quote": "has confirmed limited exploitation of DEMO-VULN-002",
+     "locator": "paragraph 1",
+     "origin": "vendor",
+     "review_state": "reviewed",
+     "reviewer": "demo-analyst",
+     "review_reason": "First-hand vendor incident response statement; independent of the news reposts"
+    }
+   ]
+  }
+ ]
+}

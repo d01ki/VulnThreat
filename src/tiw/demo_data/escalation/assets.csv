@@ -1,0 +1,4 @@
+asset_id,name,criticality,internet_exposed,observed_at,expires_at,owner,synthetic,environment
+asset-a-gw,public-gateway,normal,true,2026-10-01T00:00:00Z,2026-12-31T00:00:00Z,edge-team,true,prod
+asset-a-hr,internal-hr-portal,high,false,2026-10-01T00:00:00Z,2026-12-31T00:00:00Z,corp-it,true,prod
+asset-a-lab,build-lab-runner,normal,unknown,2026-10-01T00:00:00Z,2026-12-31T00:00:00Z,devops,true,lab

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{% set v = t.vulnerability %}{% set st = t.state %}
+<p class="crumbs"><a href="/threats">Threats</a> / <span class="mono">{{ v.id }}</span></p>
+<div class="page-head">
+  <div>
+    <h1 class="mono">{{ v.id }}</h1>
+    <p class="lede">{{ v.title or "No title recorded for this identifier." }}</p>
+  </div>
+  <div class="head-actions">
+    {{ m.estatus(t.status) }}
+    {% if v.synthetic %}<span class="badge b-synthetic">Synthetic</span>{% endif %}
+    <a class="btn btn-sm" href="/threats/{{ v.id }}/export?format=markdown">{{ icon("download", "icon icon-sm") }} Markdown</a>
+    <a class="btn btn-sm" href="/threats/{{ v.id }}/export?format=json">{{ icon("download", "icon icon-sm") }} JSON</a>
+  </div>
+</div>
+
+{% if t.kev_source_stale %}
+<div class="callout warn" role="note">{{ icon("alert") }}<span><strong>Data may be outdated.</strong> The KEV source is stale or its last retrieval failed. The existing listing is kept; it has not been withdrawn. See <a href="/sources">Sources &amp; Health</a>.</span></div>
+{% endif %}
+{% if st and st.retracted_claim_ids %}
+<div class="callout" role="note">{{ icon("info") }}<span><strong>Evidence was corrected.</strong> {{ st.retracted_claim_ids | length }} claim(s) for this threat were retracted by their publisher or a reviewer. The assessment below already excludes them; past decisions remain in the history.</span></div>
+{% endif %}
+
+{% if st %}
+<section class="axes" aria-label="Assessment axes">
+  <div class="axis"><div class="k">Public exploitation</div><div class="v">{{ st.public_exploitation | capitalize }}</div><div class="d">{% if st.public_basis_kinds %}Basis: {{ st.public_basis_kinds | join(", ") | replace("_", " ") }}{% elif st.explicitly_denied %}Explicitly denied by a source{% else %}No confirming evidence{% endif %}{% if st.kev.listed_ever %}; KEV listed {{ st.kev.date_added }}{% endif %}</div></div>
+  <div class="axis"><div class="k">Local activity</div><div class="v">{{ st.local_activity | replace("_", " ") | capitalize }}</div><div class="d">{{ st.local_counts.exploit_attempt }} attempt(s), {{ st.local_counts.scan }} scan(s){% if st.unmapped_observation_count %}; {{ st.unmapped_observation_count }} unmapped{% endif %}. Only within imported sensor coverage.</div></div>
+  <div class="axis"><div class="k">Independence</div><div class="v num">{{ st.independence.confirmed_root_count }} known root{{ "" if st.independence.confirmed_root_count == 1 else "s" }}</div><div class="d">{{ st.independence.report_count }} active report(s){% if st.independence.unresolved_source_count %}; {{ st.independence.unresolved_source_count }} root(s) of unknown origin, not counted{% endif %}</div></div>
+  <div class="axis"><div class="k">Recency</div><div class="v">{{ st.recency | capitalize }}</div><div class="d">{% if st.latest_public_evidence_at %}Latest public evidence {{ st.latest_public_evidence_at | t("%Y-%m-%d") }}; "recent" means 30 days{% else %}No public exploitation evidence{% endif %}</div></div>
+  <div class="axis"><div class="k">Conflict</div><div class="v">{{ "Yes" if st.conflict else "No" }}</div><div class="d">{{ st.denying_claim_ids | length }} denying claim(s); not resolved by majority vote</div></div>
+  <div class="axis"><div class="k">EPSS</div><div class="v num">{% if st.epss %}{{ "%.2f" | format(st.epss.probability) }}{% else %}Missing{% endif %}</div><div class="d">{% if st.epss %}Percentile {{ "%.2f" | format(st.epss.percentile) }}, scored {{ st.epss.score_date }}{% if st.epss.stale %}, stale (older than 72 h){% endif %}{% else %}Not imported; never read as low risk{% endif %}</div></div>
+</section>
+<p class="chart-notes">Assessment {{ t.assessment.engine_version }}, last changed {{ t.assessment.created_at | t }} (unchanged when re-evaluated since) · {{ t.history | length }} version(s) kept</p>
+{% else %}
+{{ m.empty("Not assessed yet", "Run an assessment to evaluate this vulnerability.") }}
+{% endif %}
+
+<section class="card" data-x="mt5" aria-labelledby="tl-h">
+  <div class="card-head"><div><h2 id="tl-h">Timeline</h2><p class="sub">Public evidence, local observations and the intelligence changes they caused, newest first</p></div></div>
+  {% if t.timeline %}
+  <div class="chain">
+    {% for e in t.timeline[:14] %}
+    <div class="link k-{{ e.kind }}">
+      <div class="row"><span><strong>{{ e.label }}</strong> <span class="secondary">{{ e.text }}</span></span><span class="when">{{ e.time | t }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if t.timeline | length > 14 %}<p class="chart-notes">{{ t.timeline | length - 14 }} older event(s) are listed in the tabs below.</p>{% endif %}
+  {% else %}{{ m.empty("No events yet", "Evidence and observations for this threat will appear here.") }}{% endif %}
+</section>
+
+<nav class="tabs" aria-label="Threat sections" data-x="mt6">
+  <a href="?tab=evidence" {% if tab == "evidence" %}aria-current="page"{% endif %}>Evidence<span class="count">{{ t.claims | length }}</span></a>
+  <a href="?tab=observations" {% if tab == "observations" %}aria-current="page"{% endif %}>Observations<span class="count">{{ t.observations | length }}</span></a>
+  <a href="?tab=assets" {% if tab == "assets" %}aria-current="page"{% endif %}>Assets<span class="count">{{ t.assets | length }}</span></a>
+  <a href="?tab=decisions" {% if tab == "decisions" %}aria-current="page"{% endif %}>Decisions<span class="count">{{ t.decisions | length }}</span></a>
+</nav>
+
+{% if tab == "evidence" %}
+<section class="card card-flush">
+  {% if t.claims %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Source</th><th scope="col">Claim</th><th scope="col">Origin</th><th scope="col">Review</th><th scope="col">Relations</th><th scope="col">Published</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+      {% for r in t.claims %}{% set c = r.claim %}
+      <tr>
+        <td>{{ c.source_name }}<span class="line2">{{ c.locator or "" }}</span></td>
+        <td>
+          <span class="mono small">{{ c.predicate }}</span>
+          {% if c.predicate == "epss_score" %}<span class="line2">{{ c.value.probability }} on {{ c.value.score_date }}</span>{% else %}<span class="line2">value: {{ c.value.get("value") }}</span>{% endif %}
+          {% if c.quote %}<blockquote class="quote">{{ c.quote }}</blockquote>{% endif %}
+        </td>
+        <td class="secondary">{{ c.origin }}</td>
+        <td>
+          <span class="badge plain {% if r.inactive_reason %}b-inactive{% endif %}">{{ c.effective_state }}</span>
+          {% if r.inactive_reason %}<span class="line2">Not used: {{ r.inactive_reason }}</span>{% endif %}
+          {% for rv in r.reviews[-1:] %}<span class="line2">{{ rv.reviewer }}: {{ rv.reason }}</span>{% endfor %}
+        </td>
+        <td class="small">
+          {% for rel in r.relations %}<span class="tag">{{ rel.kind }} {{ rel.to_key }}</span>{% endfor %}
+          {% if r.cited_by %}<span class="line2">cited by {{ r.cited_by }}</span>{% endif %}
+          {% if not r.relations and not r.cited_by %}<span class="muted">none</span>{% endif %}
+        </td>
+        <td class="nowrap num">{{ c.published_at | t("%Y-%m-%d") }}<span class="line2">fetched {{ c.fetched_at | t("%m-%d %H:%M") }}</span></td>
+        <td>{% if c.origin not in ("kev", "epss") %}<button class="btn btn-sm" type="button" data-open="review-{{ c.id }}">Review</button>
+          <dialog id="review-{{ c.id }}" aria-labelledby="review-h-{{ c.id }}">
+            <form method="post" action="/claims/{{ c.id }}/review">
+              <h2 id="review-h-{{ c.id }}">Review claim from {{ c.source_name }}</h2>
+              <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+              <input type="hidden" name="back" value="/threats/{{ v.id }}">
+              <div class="field"><label for="st-{{ c.id }}">New state</label>
+                <select id="st-{{ c.id }}" name="state"><option value="reviewed">Reviewed (accept as checked)</option><option value="rejected">Rejected</option><option value="retracted">Retracted by publisher</option><option value="unreviewed">Back to unreviewed</option></select>
+                <span class="hint">Reviews are appended; earlier reviews stay in the history.</span></div>
+              <div class="field"><label for="rv-{{ c.id }}">Reviewer</label><input id="rv-{{ c.id }}" type="text" name="reviewer" value="local-analyst" maxlength="120" required></div>
+              <div class="field"><label for="rs-{{ c.id }}">Reason (required)</label><textarea id="rs-{{ c.id }}" name="reason" maxlength="2000" required></textarea></div>
+              <div class="dialog-actions"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Save review</button></div>
+            </form>
+          </dialog>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="pad">{{ m.empty("No public evidence", "No KEV listing, EPSS score or advisory claim mentions this vulnerability. That is not evidence that it is unexploited.", "/import?kind=claims", "Import claims") }}</div>{% endif %}
+</section>
+
+{% elif tab == "observations" %}
+<section class="card card-flush">
+  {% if t.observations %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Observed</th><th scope="col">Event</th><th scope="col">Asset</th><th scope="col">Sensor</th><th scope="col">Mapping</th><th scope="col">Evidence</th></tr></thead>
+    <tbody>{% for o in t.observations %}
+      <tr><td class="nowrap num">{{ o.observed_at | t }}{% if o.observed_precision == "day" %}<span class="line2">day precision</span>{% endif %}</td><td>{{ o.event_type | replace("_", " ") }}{% if o.status == "quarantined" %}<span class="line2">quarantined</span>{% endif %}</td><td class="mono small">{{ o.asset_id or "—" }}</td><td class="secondary">{{ o.sensor_id }}</td><td>{% if o.mapping_status == "unconfirmed" %}<span class="badge e-unknown">Unconfirmed</span><span class="line2">not used in decisions</span>{% else %}<span class="secondary">{{ o.mapping_status | replace("_", " ") }}</span>{% endif %}</td><td class="small">{% for k, val in o.evidence_json.items() %}<span class="tag">{{ k }}: {{ val }}</span>{% endfor %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="pad">{{ m.empty("No local observations for this threat", "No imported sensor event is mapped to this vulnerability. Coverage gaps are listed under Sources & Health.", "/observations", "All observations") }}</div>{% endif %}
+  {% if t.unmapped_on_assets %}
+  <div class="pad-s"><h3 class="h-sm">Observations on related assets without a vulnerability mapping</h3><p class="secondary small">Shown for context only. They do not change this threat's assessment.</p>
+  <ul class="list">{% for o in t.unmapped_on_assets %}<li class="small"><span class="num">{{ o.observed_at | t }}</span> · {{ o.event_type | replace("_", " ") }} on <span class="mono">{{ o.asset_id }}</span> · {{ o.evidence_json.get("rule_id", "") }}</li>{% endfor %}</ul></div>
+  {% endif %}
+</section>
+
+{% elif tab == "assets" %}
+<section class="card card-flush">
+  {% if t.assets %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Asset</th><th scope="col">Applicability</th><th scope="col">Exposure</th><th scope="col">Decision</th><th scope="col">Reasons</th><th scope="col"><span class="sr-only">Diff</span></th></tr></thead>
+    <tbody>{% for a in t.assets %}{% set dd = a.decision %}
+      <tr><td><span class="mono">{{ a.finding.asset_id }}</span><span class="line2">{{ a.asset.name if a.asset else "" }} · {{ dd.inputs_json.criticality if dd else "" }}</span></td>
+      <td>{{ dd.inputs_json.applicability.effective | replace("_", " ") if dd else "—" }}</td>
+      <td>{{ dd.inputs_json.exposure.effective if dd else "—" }}</td>
+      <td>{{ m.urgency(dd.urgency if dd else None) }}<span class="line2">{{ m.action(dd.action if dd else None) }}</span></td>
+      <td class="small">{% for code, text in a.reasons %}<span class="tag" title="{{ text }}">{{ code }}</span>{% endfor %}</td>
+      <td>{% if dd %}<a href="/decisions/{{ dd.id }}">Diff</a>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="pad">{{ m.empty("No assets linked", "Import a findings CSV that maps assets to this vulnerability.", "/import?kind=findings", "Import findings") }}</div>{% endif %}
+</section>
+
+{% else %}
+<section class="card card-flush">
+  {% if t.decisions %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Created</th><th scope="col">Finding</th><th scope="col">Decision</th><th scope="col">Rule</th><th scope="col">Policy</th><th scope="col"><span class="sr-only">Diff</span></th></tr></thead>
+    <tbody>{% for dd in t.decisions %}
+      <tr><td class="nowrap num">{{ dd.created_at | t }}</td><td class="mono small">{{ dd.finding_id }}</td><td>{{ m.urgency(dd.urgency) }}<span class="line2">{{ dd.action | replace("_", " ") }}</span></td><td class="secondary small">{{ RULE_TITLES[dd.rule] }}</td><td class="secondary">{{ dd.policy_version }}</td><td><a href="/decisions/{{ dd.id }}">{{ "Diff" if dd.previous_id else "Initial" }}</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="pad">{{ m.empty("No decisions yet", "Decisions are created for findings linked to this vulnerability.") }}</div>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

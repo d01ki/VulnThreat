@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Investigation Queue", "Questions whose answers would move unresolved decisions. Findings that one check can settle are grouped. Ordered by urgent/high cases affected, then total cases, then effort.", info) }}
+
+<div class="filters">
+  <nav class="segmented" aria-label="Task status">
+    <a href="/investigations" {% if show != "all" %}aria-current="true"{% endif %}>Open</a>
+    <a href="/investigations?show=all" {% if show == "all" %}aria-current="true"{% endif %}>Open and resolved</a>
+  </nav>
+</div>
+
+{% if items %}
+<div class="stack">
+{% for it in items %}{% set tk = it.task %}
+  <section class="card" aria-labelledby="t-{{ tk.id }}">
+    <div class="card-head">
+      <div>
+        <h2 id="t-{{ tk.id }}">{{ tk.question }}</h2>
+        <div class="meta"><span class="num">{{ tk.urgent_high_count }} urgent/high</span><span class="num">{{ it["items"] | length }} finding(s)</span><span>effort {{ tk.estimated_effort }} (configured per check type)</span><span>{{ tk.check_type | replace("_", " ") }}</span><span>updated {{ tk.updated_at | t }}</span></div>
+      </div>
+      {% if tk.status == "open" %}<span class="badge e-reported">Open</span>{% else %}<span class="badge s-ok">Resolved</span>{% endif %}
+    </div>
+    <p class="secondary"><strong>Evidence needed:</strong> {{ tk.required_evidence }}</p>
+    <div class="table-wrap" data-x="mt3"><table>
+      <thead><tr><th scope="col">Finding</th><th scope="col">Asset</th><th scope="col">Threat</th><th scope="col">Current decision</th></tr></thead>
+      <tbody>{% for i in it["items"] %}<tr><td class="mono small">{{ i.finding_id }}</td><td class="mono small">{{ i.asset_id }}</td><td>{% if i.vulnerability_id %}{{ m.vid(i.vulnerability_id) }}{% endif %}</td><td>{% if i.decision %}<a href="/decisions/{{ i.decision.id }}">{{ m.urgency(i.decision.urgency) }}</a> <span class="secondary small">{{ i.decision.action | replace("_", " ") }}</span>{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% if tk.status == "open" %}
+      {% if it.manual %}
+      <form method="post" action="/investigations/{{ tk.id }}/resolve" class="filters" data-x="mt4">
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+        <label for="r-{{ tk.id }}" class="sr-only">Resolution note</label>
+        <input id="r-{{ tk.id }}" type="text" name="reason" placeholder="Resolution note" maxlength="1000" required>
+        <button class="btn btn-sm" type="submit">Mark reviewed</button>
+      </form>
+      {% else %}<p class="chart-notes">Closes automatically once the evidence above is imported and the decision no longer depends on it.</p>{% endif %}
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+{% else %}
+  {{ m.empty("No open questions", "Every current decision has the evidence it needs. When applicability, exposure, KEV status or a correction needs checking, the question appears here.", "/assets", "View asset decisions") }}
+{% endif %}
+{% endblock %}

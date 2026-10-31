@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.tiw/
+.tiw-demo/
+*.db
+dist/
+build/
+screenshots/
+
+# design documents are kept local only (not pushed)
+docs/DESIGN.md
+docs/UI_DESIGN.md
+docs/IMPLEMENTATION_PROMPT.md

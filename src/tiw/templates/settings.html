@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Settings", "Display settings for this workspace. Stored times stay in UTC; only the display changes.", info, show_import=False) }}
+<div class="grid">
+  <section class="card span-6" aria-labelledby="tz-h">
+    <div class="card-head"><div><h2 id="tz-h">Display timezone</h2><p class="sub">Used for tables, charts and day buckets</p></div></div>
+    <form method="post" action="/settings">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+      <div class="field">
+        <label for="tz">Timezone (IANA name)</label>
+        <input id="tz" type="text" name="timezone_name" value="{{ info.timezone }}" list="tz-list" maxlength="64" required>
+        <datalist id="tz-list">{% for z in zones %}<option value="{{ z }}">{% endfor %}</datalist>
+        <span class="hint">Current time here: {{ info.now | t("%Y-%m-%d %H:%M %Z") }}</span>
+      </div>
+      <button class="btn btn-primary" type="submit">Save timezone</button>
+    </form>
+  </section>
+  <section class="card span-6" aria-labelledby="ws-h">
+    <div class="card-head"><div><h2 id="ws-h">Workspace</h2><p class="sub">Read-only facts about this installation</p></div></div>
+    <ul class="reason-list">
+      <li><strong>Data mode</strong><br><span class="secondary">{{ "Synthetic (demo fixtures only)" if info.synthetic else "Live" }}</span></li>
+      <li><strong>Clock</strong><br><span class="secondary">{% if info.clock_fixed %}Fixed at {{ info.now | t }} for a reproducible demo{% else %}System clock (UTC){% endif %}</span></li>
+      <li><strong>Brand name</strong><br><span class="secondary">{{ info.brand_name }}. Change with <code>tiw set brand_name "…"</code>.</span></li>
+      <li><strong>Network</strong><br><span class="secondary">This build makes no outbound requests. Live KEV/EPSS fetching is a later milestone.</span></li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

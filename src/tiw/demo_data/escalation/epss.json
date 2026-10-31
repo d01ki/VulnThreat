@@ -1,0 +1,12 @@
+{
+ "status": "OK",
+ "synthetic": true,
+ "data": [
+  {
+   "cve": "DEMO-VULN-001",
+   "epss": "0.12",
+   "percentile": "0.91",
+   "date": "2026-10-01"
+  }
+ ]
+}

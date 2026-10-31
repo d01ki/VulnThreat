@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Threat Changes", "What changed in threat activity, what it is based on, and which asset decisions it moved.", info, d.period.key, url) }}
+
+{% if not info.has_data %}
+  {{ m.empty("No data imported yet", "Import assets, findings, observations or a saved KEV/EPSS response to start tracking changes. To explore with synthetic data, run `tiw demo seed` and serve the demo workspace.", "/import", "Import a file", "/sources", "Check sources") }}
+{% else %}
+
+<section class="grid" aria-label="Key figures for {{ d.period.label | lower }}">
+  {% for k in d.kpis %}
+  <a class="card kpi span-3" href="{{ k.href }}">
+    <span class="label">{{ k.label }}</span>
+    <span class="value">{{ k.value }}</span>
+    <span class="def">{{ k.definition }}{% if k.key in ("changes", "attempts") %} · {{ d.period.label | lower }}{% else %} · current{% endif %}</span>
+    {% if k.previous is not none %}<span class="cmp num">Previous period: {{ k.previous }}</span>{% endif %}
+  </a>
+  {% endfor %}
+</section>
+
+<div class="grid" data-x="mt5">
+  <section class="card span-8" aria-labelledby="activity-h">
+    <div class="card-head">
+      <div>
+        <h2 id="activity-h">Intelligence activity</h2>
+        <p class="sub">Count per {{ d.activity.granularity }} · {{ d.activity.timezone }} · public updates by publication date, local observations by observed time</p>
+      </div>
+      <div class="chart-legend" aria-hidden="true">
+        <span class="legend-item"><span class="swatch-line swatch-public"></span>Public updates</span>
+        <span class="legend-item"><span class="swatch-line swatch-local"></span>Local observations</span>
+        {% if chart.gaps %}<span class="legend-item"><span class="swatch-gap"></span>No sensor coverage</span>{% endif %}
+      </div>
+    </div>
+    {% if d.activity.has_data %}
+    <svg class="chart" viewBox="0 0 {{ chart.w }} {{ chart.h }}" role="img" aria-labelledby="activity-h activity-desc">
+      <desc id="activity-desc">Line chart of public updates and local observations. The data table below lists every value.</desc>
+      <defs><pattern id="gap-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="#26324b"/></pattern></defs>
+      {% for g in chart.gaps %}<rect class="gap" x="{{ g.x }}" y="{{ chart.top }}" width="{{ g.w }}" height="{{ chart.bottom - chart.top }}"/>{% endfor %}
+      {% for g in chart.grid %}
+        <line class="grid-line" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ g.y }}" y2="{{ g.y }}"/>
+        <text class="axis-label" x="{{ chart.left - 8 }}" y="{{ g.y + 4 }}" text-anchor="end">{{ g.label }}</text>
+      {% endfor %}
+      {% for xl in chart.xlabels %}<text class="axis-label" x="{{ xl.x }}" y="{{ chart.h - 8 }}" text-anchor="middle">{{ xl.label }}</text>{% endfor %}
+      {% for p in chart.public %}<path class="series-public" d="{{ p }}"/>{% endfor %}
+      {% for p in chart.local %}<path class="series-local" d="{{ p }}"/>{% endfor %}
+      {% for mk in chart.markers.public %}<circle class="dot-public" cx="{{ mk.x }}" cy="{{ mk.y }}" r="3"><title>{{ mk.label }}: {{ mk.v }} public update(s)</title></circle>{% endfor %}
+      {% for mk in chart.markers.local %}<rect class="dot-local" x="{{ mk.x - 3 }}" y="{{ mk.y - 3 }}" width="6" height="6"><title>{{ mk.label }}: {{ mk.v }} local observation(s)</title></rect>{% endfor %}
+    </svg>
+    {% else %}
+      {{ m.empty("No activity in this period", "No public updates or local observations fall into " ~ (d.period.label | lower) ~ ". Choose a longer period or import new data.", url(period="all"), "Show all time", "/import", "Import") }}
+    {% endif %}
+    {% for n in d.activity.notes %}<p class="chart-notes">{{ icon("info", "icon icon-sm") }} {{ n }}</p>{% endfor %}
+    <details class="data-table">
+      <summary>Show data table</summary>
+      <div class="table-wrap" data-x="scroll">
+        <table>
+          <thead><tr><th scope="col">Bucket</th><th scope="col" class="r">Public updates</th><th scope="col" class="r">Local observations</th></tr></thead>
+          <tbody>
+          {% for p in d.activity.points %}
+            <tr><td class="num">{{ p.start | t("%Y-%m-%d %H:%M") }}</td><td class="r num">{{ p.public }}</td><td class="r num">{% if p.gap %}<span class="muted">no coverage</span>{% else %}{{ p.local }}{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section class="card span-4" aria-labelledby="evidence-h">
+    <div class="card-head">
+      <div>
+        <h2 id="evidence-h">Evidence status</h2>
+        <p class="sub">Latest assessment per threat, one class each: conflict, then confirmed, reported, unknown</p>
+      </div>
+    </div>
+    {% if donut.total %}
+    <div class="donut-wrap">
+      <svg class="donut" width="{{ donut.size }}" height="{{ donut.size }}" viewBox="0 0 {{ donut.size }} {{ donut.size }}" role="img" aria-label="{{ donut.total }} threats by evidence status">
+        <g transform="rotate(-90 {{ donut.size / 2 }} {{ donut.size / 2 }})">
+          <circle class="track" cx="{{ donut.size / 2 }}" cy="{{ donut.size / 2 }}" r="{{ donut.r }}" fill="none" stroke-width="{{ donut.stroke }}"/>
+          {% for sgm in donut.segments %}
+          <circle class="seg-{{ sgm.status }}" cx="{{ donut.size / 2 }}" cy="{{ donut.size / 2 }}" r="{{ donut.r }}" fill="none" stroke-width="{{ donut.stroke }}" stroke-dasharray="{{ sgm.dash }}" stroke-dashoffset="{{ sgm.offset }}"/>
+          {% endfor %}
+        </g>
+        <text x="50%" y="48%" text-anchor="middle" font-size="24" font-weight="600">{{ donut.total }}</text>
+        <text x="50%" y="62%" text-anchor="middle" font-size="11" fill="#8999b4">threats</text>
+      </svg>
+      <ul class="legend-list">
+        {% for e in d.evidence_status %}
+        <li><a href="/threats?status={{ e.status }}">{{ m.estatus(e.status) }}</a><span class="count">{{ e.count }} <span class="muted small">of {{ d.evidence_total }}</span></span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <p class="chart-notes">Confirmed means KEV-listed or a reviewed first-hand report. It does not say exploitation is ongoing or that your assets are compromised.</p>
+    {% else %}
+      {{ m.empty("No assessments yet", "Assessments appear after vulnerabilities are imported.", "/import", "Import") }}
+    {% endif %}
+  </section>
+
+  <section class="card card-flush span-8" aria-labelledby="changes-h">
+    <div class="card-head">
+      <div>
+        <h2 id="changes-h">Latest intelligence changes</h2>
+        <p class="sub">Meaningful deltas only · {{ d.period.label | lower }}</p>
+      </div>
+      <a class="btn btn-sm btn-ghost" href="/threats?changed=1&amp;period={{ d.period.key }}">All changed threats</a>
+    </div>
+    {% if d.latest_changes %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Time</th><th scope="col">Threat</th><th scope="col">Change</th><th scope="col" class="r">Evidence</th><th scope="col" class="r">Affected assets</th><th scope="col">Action</th></tr></thead>
+        <tbody>
+        {% for c in d.latest_changes %}
+          <tr>
+            <td class="nowrap num">{{ c.delta.created_at | t("%m-%d %H:%M") }}</td>
+            <td>{{ m.vid(c.delta.vulnerability_id) }}</td>
+            <td><span>{{ c.label }}</span><span class="line2 clip" title="{{ c.summary }}">{{ c.summary }}</span></td>
+            <td class="r num"><a href="/threats/{{ c.delta.vulnerability_id }}?tab=evidence">{{ c.evidence_count }}</a></td>
+            <td class="r num"><a href="/threats/{{ c.delta.vulnerability_id }}?tab=assets">{{ c.assets | length }}</a></td>
+            <td class="nowrap">{% if c.first_decision_id %}<a href="/decisions/{{ c.first_decision_id }}">View decision diff</a>{% else %}<a href="/threats/{{ c.delta.vulnerability_id }}">Open threat</a><span class="line2">no decision changed</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="pad-b">{{ m.empty("No intelligence changes in this period", "Nothing meaningful changed in " ~ (d.period.label | lower) ~ ". Refetches and reposts are not counted.", url(period="all"), "Show all time") }}</div>
+    {% endif %}
+  </section>
+
+  <section class="card span-4" aria-labelledby="sources-h">
+    <div class="card-head">
+      <div><h2 id="sources-h">Source health</h2><p class="sub">Freshness of the inputs behind current assessments</p></div>
+      <a class="btn btn-sm btn-ghost" href="/sources">Details</a>
+    </div>
+    {% if d.sources %}
+    <ul class="list">
+      {% for sh in d.sources %}
+      <li class="source-row">
+        <div class="row"><span class="name">{{ sh.name }}</span>{{ m.health(sh.status) }}</div>
+        <div class="meta"><span>Last successful update {{ sh.last_successful_update | rel }}</span>{% if sh.status == "failed" %}<span>failed {{ sh.last_failure | rel }}</span>{% endif %}<span>limit {{ sh.freshness_limit }}</span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}{{ m.empty("No sources yet", "Sources appear after the first import.") }}{% endif %}
+  </section>
+
+  <section class="card span-6" aria-labelledby="inv-h">
+    <div class="card-head">
+      <div><h2 id="inv-h">Priority investigations</h2><p class="sub">Questions that would move unresolved decisions, ordered by urgent/high cases affected</p></div>
+      <a class="btn btn-sm btn-ghost" href="/investigations">Queue</a>
+    </div>
+    {% if d.tasks %}
+    <ul class="list">
+      {% for it in d.tasks %}
+      <li>
+        <p class="task-q">{{ it.task.question }}</p>
+        <div class="meta"><span class="num">{{ it.task.urgent_high_count }} urgent/high</span><span class="num">{{ it["items"] | length }} finding(s)</span><span>effort {{ it.task.estimated_effort }}</span><span>{{ it.task.check_type | replace("_", " ") }}</span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}{{ m.empty("No open questions", "Every current decision has the evidence it needs. New unknowns will appear here.") }}{% endif %}
+  </section>
+
+  <section class="card span-6" aria-labelledby="dec-h">
+    <div class="card-head">
+      <div><h2 id="dec-h">Decision changes</h2><p class="sub">Action or urgency changed · {{ d.period.label | lower }}</p></div>
+      <a class="btn btn-sm btn-ghost" href="/assets">All assets</a>
+    </div>
+    {% if d.decision_changes %}
+    <ul class="list">
+      {% for dc in d.decision_changes %}
+      <li>
+        <div class="row">
+          <span><a class="mono" href="/decisions/{{ dc.decision.id }}">{{ dc.asset_id }}</a> <span class="muted">for</span> {{ m.vid(dc.vulnerability_id) }}</span>
+          <span class="arrow-pair">{{ m.urgency(dc.previous.urgency) }}{{ icon("arrow", "icon icon-sm muted") }}<span class="sr-only">changed to</span>{{ m.urgency(dc.decision.urgency) }}</span>
+        </div>
+        <div class="meta"><span>{{ dc.previous.action | replace("_", " ") }} to {{ dc.decision.action | replace("_", " ") }}</span><span>{{ RULE_TITLES[dc.decision.rule] }}</span><span class="num">{{ dc.decision.created_at | t("%m-%d %H:%M") }}</span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}{{ m.empty("No decision changes in this period", "Decisions only change when evidence, asset context or time-based expiry changes the policy result.") }}{% endif %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

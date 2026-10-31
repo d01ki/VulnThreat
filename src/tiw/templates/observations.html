@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Observations", "Local sensor events. Scans, exploit attempts and reviewed compromises are kept apart, and events without a confirmed vulnerability mapping never raise a decision.", info, d.period.key, url) }}
+
+<div class="filters">
+  <nav class="segmented" aria-label="Event type">
+    <a href="{{ url(event_type=None) }}" {% if not event_type %}aria-current="true"{% endif %}>All events</a>
+    <a href="{{ url(event_type='scan') }}" {% if event_type == 'scan' %}aria-current="true"{% endif %}>Scan</a>
+    <a href="{{ url(event_type='exploit_attempt') }}" {% if event_type == 'exploit_attempt' %}aria-current="true"{% endif %}>Exploit attempt</a>
+    <a href="{{ url(event_type='compromise_confirmed') }}" {% if event_type == 'compromise_confirmed' %}aria-current="true"{% endif %}>Compromise (reviewed)</a>
+  </nav>
+  <form method="get" action="/observations" role="search">
+    <input type="hidden" name="period" value="{{ d.period.key }}">
+    {% if event_type %}<input type="hidden" name="event_type" value="{{ event_type }}">{% endif %}
+    <label for="q" class="sr-only">Search observations</label>
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="Asset, vulnerability, sensor, event ID" maxlength="100">
+    <button class="btn btn-sm" type="submit">Apply</button>
+  </form>
+</div>
+
+{% macro obs_table(rows, show_mapping) %}
+<div class="table-wrap"><table>
+  <thead><tr><th scope="col">Observed</th><th scope="col">Event</th><th scope="col">Asset</th><th scope="col">Vulnerability</th><th scope="col">Sensor / event ID</th>{% if show_mapping %}<th scope="col">Mapping</th>{% endif %}<th scope="col">Evidence (minimised)</th></tr></thead>
+  <tbody>{% for o in rows %}
+  <tr>
+    <td class="nowrap num">{{ o.observed_at | t }}{% if o.observed_precision == "day" %}<span class="line2">day precision</span>{% endif %}</td>
+    <td>{{ o.event_type | replace("_", " ") }}{% if o.reviewer %}<span class="line2">reviewed by {{ o.reviewer }}</span>{% endif %}</td>
+    <td class="mono small">{{ o.asset_id or "—" }}</td>
+    <td>{% if o.cve_id %}{{ m.vid(o.cve_id) }}{% else %}<span class="muted">none</span>{% endif %}</td>
+    <td class="secondary small">{{ o.sensor_id }}<span class="line2 mono">{{ o.external_event_id or "hash-deduplicated" }}</span></td>
+    {% if show_mapping %}<td><span class="badge e-unknown">{{ o.mapping_status }}</span></td>{% endif %}
+    <td class="small">{% for k, val in o.evidence_json.items() %}<span class="tag">{{ k }}: {{ val }}</span>{% endfor %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% endmacro %}
+
+<section class="card card-flush" aria-labelledby="mapped-h">
+  <div class="card-head"><div><h2 id="mapped-h">Mapped to a vulnerability</h2><p class="sub">{{ d.mapped | length }} event(s) with a reviewer-confirmed or explicit mapping · {{ d.period.label | lower }}</p></div></div>
+  {% if d.mapped %}{{ obs_table(d.mapped, False) }}{% else %}<div class="pad-b">{{ m.empty("No observations in this period", "No mapped sensor events fall into " ~ (d.period.label | lower) ~ ".", url(period="all"), "Show all time", "/import?kind=observations", "Import observations") }}</div>{% endif %}
+</section>
+
+<section class="card card-flush" data-x="mt5" aria-labelledby="unmapped-h">
+  <div class="card-head"><div><h2 id="unmapped-h">Vulnerability mapping not confirmed</h2><p class="sub">Stored and visible, but not propagated to any vulnerability's priority</p></div></div>
+  {% if d.unmapped %}{{ obs_table(d.unmapped, True) }}{% else %}<div class="pad-b">{{ m.empty("Nothing unmapped", "Every observation in this period has a confirmed mapping.") }}</div>{% endif %}
+</section>
+
+{% if d.quarantined %}
+<section class="card card-flush" data-x="mt5" aria-labelledby="q-h">
+  <div class="card-head"><div><h2 id="q-h">Quarantined</h2><p class="sub">Timestamps more than 5 minutes in the future; excluded from all assessments</p></div></div>
+  {{ obs_table(d.quarantined, False) }}
+</section>
+{% endif %}
+
+<section class="card" data-x="mt5" aria-labelledby="cov-h">
+  <div class="card-head"><div><h2 id="cov-h">Sensor coverage</h2><p class="sub">"None observed" only applies inside these windows</p></div></div>
+  {% if d.windows %}
+  <ul class="list">{% for w in d.windows %}<li class="row small"><span><span class="mono">{{ w.sensor_id }}</span> {{ w.start | t }} to {{ w.end | t }}</span>{% if w.status == "ok" %}<span class="badge s-ok">Collecting</span>{% else %}<span class="badge s-failed">Outage</span>{% endif %}</li>{% endfor %}</ul>
+  {% else %}{{ m.empty("Coverage not recorded", "Import sensor_window records so that the absence of observations can be interpreted.") }}{% endif %}
+</section>
+{% endblock %}

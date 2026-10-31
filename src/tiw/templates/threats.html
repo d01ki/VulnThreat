@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Threats", "Every tracked vulnerability with its current evidence status and the most urgent decision it drives.", info, d.period.key, url) }}
+
+<div class="filters">
+  <nav class="segmented" aria-label="Evidence status">
+    <a href="{{ url(status=None, cursor=None) }}" {% if not status %}aria-current="true"{% endif %}>All</a>
+    {% for s in ["conflict", "confirmed", "reported", "unknown"] %}
+    <a href="{{ url(status=s, cursor=None) }}" {% if status == s %}aria-current="true"{% endif %}>{{ s | capitalize }}</a>
+    {% endfor %}
+  </nav>
+  <form method="get" action="/threats" role="search">
+    <input type="hidden" name="period" value="{{ d.period.key }}">
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <label class="check"><input type="checkbox" name="changed" value="1" {% if changed %}checked{% endif %}> Changed in period</label>
+    <label for="q" class="sr-only">Search threats</label>
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="Search ID or title" maxlength="100">
+    <button class="btn btn-sm" type="submit">Apply</button>
+  </form>
+</div>
+
+<section class="card card-flush" aria-label="Threat list">
+  {% if d["items"] %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Threat</th><th scope="col">Evidence</th><th scope="col">Local activity</th><th scope="col" class="r">Reports / roots</th><th scope="col" class="r">Assets</th><th scope="col">Top decision</th><th scope="col">Last change</th></tr></thead>
+      <tbody>
+      {% for t in d["items"] %}
+        {% set st = t.state %}
+        <tr>
+          <td>{{ m.vid(t.id) }}<span class="line2 clip" title="{{ t.title or '' }}">{{ t.title or "No title recorded" }}</span></td>
+          <td>{{ m.estatus(t.status) }}{% if t.kev_source_stale %}<span class="line2"><span class="badge s-stale">KEV source stale</span></span>{% endif %}</td>
+          <td class="secondary">{{ (st.local_activity if st else "none_observed") | replace("_", " ") }}</td>
+          <td class="r num">{% if st %}{{ st.independence.report_count }} / {{ st.independence.confirmed_root_count }}{% if st.independence.unresolved_source_count %}<span class="line2">{{ st.independence.unresolved_source_count }} unresolved</span>{% endif %}{% else %}0 / 0{% endif %}</td>
+          <td class="r num"><a href="/assets?vulnerability={{ t.id }}">{{ t.assets }}</a></td>
+          <td>{{ m.urgency(t.top_urgency) }}{% if t.top_action %}<span class="line2">{{ t.top_action | replace("_", " ") }}</span>{% endif %}</td>
+          <td class="nowrap num">{{ t.last_change | t("%m-%d %H:%M") }}{% if t.changes_in_period %}<span class="line2">{{ t.changes_in_period }} in period</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if d.next_cursor %}<div class="card-foot"><a href="{{ url(cursor=d.next_cursor) }}">Next page</a></div>{% endif %}
+  {% else %}
+  <div class="pad">
+    {% if info.has_data %}
+      {{ m.empty("No threats match these filters", "Clear the filters or choose a longer period.", "/threats", "Clear filters") }}
+    {% else %}
+      {{ m.empty("No threats tracked yet", "Threats appear when KEV, EPSS, claims, findings or observations mention a vulnerability.", "/import", "Import a file") }}
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+<p class="chart-notes">Reports / roots: active exploitation reports and the number of independent roots with a known first-hand origin. Reposts that cite the same source are collapsed into one root.</p>
+{% endblock %}

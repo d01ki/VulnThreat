@@ -1,0 +1,4 @@
+finding_id,asset_id,vulnerability_id,applicability,observed_at,rationale,evidence_ref,reviewer,expires_at,scanner_ref,synthetic
+f-a-gw,asset-a-gw,DEMO-VULN-001,affected,2026-10-01T00:00:00Z,,,,,demo-scanner:1001,true
+f-a-hr,asset-a-hr,DEMO-VULN-001,affected,2026-10-01T00:00:00Z,,,,,demo-scanner:1002,true
+f-a-lab,asset-a-lab,DEMO-VULN-001,unknown,2026-10-01T00:00:00Z,,,,,demo-scanner:1003,true
