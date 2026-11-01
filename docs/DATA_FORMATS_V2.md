@@ -4,7 +4,7 @@ All files are UTF-8 JSON objects with `"schema_version": "1.0"`, max 10 MB. **Un
 
 Import order: assets → findings → (claims) → topology → exploit conditions → remediations.
 
-**Shortcut:** only `assets.csv`, `findings.csv` and `topology.json` must be written by hand. Exploit conditions and remediations can be generated as drafts from the imported findings (see *Drafts* below). Templates for all three JSON files: Import screen → "Download template", or `GET /import/template/{topology|exploit_conditions|remediations}`.
+**Shortcut:** only `assets.csv`, `findings.csv` and the network paths must be provided by hand, and the paths need no JSON (see *Network paths CSV / screen*). Exploit conditions and remediations can be generated as drafts from the imported findings (see *Drafts* below). Templates for all three JSON files: Import screen → "Download template", or `GET /import/template/{topology|exploit_conditions|remediations}`.
 
 ```text
 tiw import topology topology.json
@@ -12,6 +12,29 @@ tiw import exploit-conditions exploit_conditions.json
 tiw import remediations remediations.json
 ```
 REST: `POST /api/v1/imports/{topology|exploit_conditions|remediations}` (multipart `file`).
+
+## Network paths CSV / screen (no JSON needed)
+
+```csv
+source,target,ports,reachability,evidence_ref,reviewer
+internet,web-01,443,allowed,fw rule 10,alice
+web-01,app-01,8443 8080,allowed,fw rule 20,alice
+app-01,db-01,5432,unknown,segment not in the export,alice
+```
+
+`tiw import topology-csv edges.csv` (also `edges`), Import screen kind `topology_csv`, or the **Network Paths** screen (`/topology`: add/delete paths and set crown-jewel weights in the browser). `tiw graph edges --out edges.csv` and `/topology.csv` export the current topology in the same format, so you can edit and re-import it.
+
+| Column | Required | Notes |
+|---|---|---|
+| `source` | yes | `internet` or `entry:<name>` = entry point; otherwise an imported asset id. **An unknown name is an error, never a new entry point** |
+| `target` | yes | Imported asset id |
+| `ports` | network | `443`, `tcp/443`, `udp/53`; several separated by spaces or `;` |
+| `reachability` | no | `allowed` (default), `unknown` (never read as blocked), `blocked` |
+| `evidence_ref` | yes* | Citation; *or `claim_keys` |
+| `reviewer` | no | Filled = reviewed. Empty = unreviewed: an `allowed` edge with no reviewed claim is *unsupported*, and paths through it are excluded as insufficient evidence |
+| optional | | `kind` (`network`/`trust`), `requires_capability`, `grants_capability` (trust edges), `valid_from`, `valid_until`, `claim_keys`, `label`, `source_zone`, `destination_zone`, `control`, `id` (default `e-<source>-<target>`) |
+
+Crown jewels, in priority order: (1) assets with a `crown_jewel_weight` column in `assets.csv` (integer 1–1000); (2) the current topology's objectives; (3) every `critical` asset, each with weight **1** (relative importance is never guessed). The choice is written into the topology description. Node zones come from an optional `zone` column in `assets.csv`. A CSV import **replaces** the whole topology as a new version; the screen edits the current version. Both are converted to a `topology.json` document and validated by the same rules below; errors are reported against CSV line numbers.
 
 ## topology.json
 

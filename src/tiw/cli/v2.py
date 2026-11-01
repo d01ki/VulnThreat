@@ -87,6 +87,25 @@ def graph_build(
     typer.echo("Model paths only: not observed attacks and not proof of reachability or compromise.")
 
 
+@graph_app.command("edges")
+def graph_edges(
+    out: Optional[Path] = typer.Option(None, "--out", dir_okay=False, help="Write the CSV here instead of stdout"),
+    data_dir: Optional[Path] = DataDir,
+) -> None:
+    """Export the current topology as an edge CSV (edit it and re-import with `tiw import topology-csv`)."""
+    from tiw.services import topology_builder as tb
+
+    ws = _ws(data_dir)
+    with db.session_scope(ws) as s:
+        doc = tb.current_document(s)
+    body = tb.to_csv(doc) if doc else ",".join(tb.EDGE_CSV_COLUMNS) + chr(10)
+    if out is None:
+        typer.echo(body, nl=False)
+    else:
+        out.write_text(body, encoding="utf-8", newline="")
+        typer.echo(f"Wrote {out}")
+
+
 @graph_app.command("explain")
 def graph_explain(
     path_id: str = typer.Option(..., "--path-id", help="PATH-XXXXXXXXXX, or an ordinal such as PATH-001"),

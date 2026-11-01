@@ -1,7 +1,7 @@
 # Implementation status: v2 (attack-path triage)
 
 Branch `feat/evidence-grounded-attack-path-triage`. Legend: `[x]` done and covered by automated tests or a recorded manual check; `[ ]` not done; `[~]` partly done (see note).
-Last updated: 2026-11-01. Baseline before v2: 123 tests passing. Now: **213 passed** (`uv run pytest`), 0 failed.
+Last updated: 2026-11-01. Baseline before v2: 123 tests passing. Now: **226 passed** (`uv run pytest`), 0 failed.
 
 ## M1: offline attack graph (P0)
 
@@ -49,7 +49,7 @@ Last updated: 2026-11-01. Baseline before v2: 123 tests passing. Now: **213 pass
 
 - [x] Downloadable templates for `topology`, `exploit_conditions` and `remediations` (verified to import cleanly into a live workspace together with the CSV templates)
 - [x] Drafts generated from imported findings (`tiw draft …`, Import screen button, `/api/v1/drafts`): curated entries kept, missing ones appended; `service_ports: ["any"]` adds an explicit unknown fact so drafted paths stay conditional; efforts are labelled placeholders
-- [ ] Simplified topology input (CSV / form) — not done
+- [x] Simplified topology input: edge CSV (`tiw import topology-csv`, Import kind `topology_csv`) and the Network Paths screen (add/delete paths, crown-jewel weights); CSV export round-trips the demo topology with identical path ids and states; converted documents go through the normal topology validation; errors are mapped to CSV lines; typos never create entry points
 
 ## Design decisions and deviations
 

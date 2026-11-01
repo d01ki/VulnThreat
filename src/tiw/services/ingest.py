@@ -60,9 +60,9 @@ from tiw.storage.models import (
     Vulnerability,
 )
 
-KINDS = ("kev", "epss", "assets", "findings", "observations", "claims", "topology", "exploit_conditions", "remediations")
+KINDS = ("kev", "epss", "assets", "findings", "observations", "claims", "topology", "topology_csv", "exploit_conditions", "remediations")
 GRAPH_KINDS = ("topology", "exploit_conditions", "remediations")
-KIND_ALIASES = {"exploit-conditions": "exploit_conditions", "remediation": "remediations", "remediation_catalog": "remediations"}
+KIND_ALIASES = {"topology-csv": "topology_csv", "edges": "topology_csv", "exploit-conditions": "exploit_conditions", "remediation": "remediations", "remediation_catalog": "remediations"}
 
 ADAPTERS: dict[str, tuple[str, Callable[[bytes, ParseContext], ParseResult]]] = {
     "kev": (KEV_ADAPTER_VERSION, parse_kev),
@@ -765,6 +765,11 @@ def run_import(
 ) -> ImportOutcome:
     """Validate and import one file. Whole-file rollback unless allow_partial is set."""
     kind = KIND_ALIASES.get(kind, kind)
+    if kind == "topology_csv":
+        from tiw.services.topology_builder import run_csv_import
+
+        check_size(data)
+        return run_csv_import(ws, data, actor=actor, allow_partial=allow_partial, dry_run=dry_run, recompute=recompute)
     if kind not in ADAPTERS:
         raise ValueError(f"unknown import kind {kind!r}; expected one of {', '.join(KINDS)}")
     version, parser = ADAPTERS[kind]

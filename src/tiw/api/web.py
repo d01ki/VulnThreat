@@ -35,6 +35,7 @@ KIND_HELP = {
     "findings": "Finding CSV — finding_id, asset_id, vulnerability_id, applicability, observed_at (+ rationale, evidence_ref, reviewer, expires_at for not_affected)",
     "observations": "Observation JSONL — one event or sensor_window per line (schema_version 1.0)",
     "claims": "Reviewed advisory claims JSON (schema_version 1.0); also graph evidence (predicates reachability / precondition)",
+    "topology_csv": "Network paths CSV — one row per path: source (internet or an asset), target, ports (443 or tcp/443), reachability, evidence_ref, reviewer. Replaces the topology; crown jewels from assets.csv crown_jewel_weight or criticality=critical",
     "topology": "Topology JSON — entry points, asset nodes, security objectives and directed edges with evidence (schema_version 1.0)",
     "exploit_conditions": "Exploit conditions JSON — structured, non-executable preconditions per vulnerability (schema_version 1.0)",
     "remediations": "Remediation catalog JSON — actions with integer effort, downtime, dependencies and conflicts (schema_version 1.0)",
@@ -49,6 +50,7 @@ NOTICES = {
     "settings_saved": "Settings saved.",
     "demo_reset_1": "Demo reset to step 1. Every analysis below was recomputed from the synthetic fixtures.",
     "demo_reset_2": "Demo reset and advanced to step 2 (the SFTP runbook claim is retracted).",
+    "topology_saved": "Network paths saved as a new topology version. Attack paths were recomputed.",
     "drafts_imported": "Drafts imported from your findings. They are unreviewed: service ports are 'any' and efforts are placeholders, so paths stay conditional until you refine them.",
     "demo_step_2": "Step 2 applied: the SFTP to API runbook claim was retracted. Compare the recommendation below with the previous run.",
 }
@@ -110,6 +112,11 @@ _REMEDIATIONS_TEMPLATE = {
 }
 for _k, _doc in (("topology", _TOPOLOGY_TEMPLATE), ("exploit_conditions", _CONDITIONS_TEMPLATE), ("remediations", _REMEDIATIONS_TEMPLATE)):
     IMPORT_TEMPLATES[_k] = (f"{_k}-template.json", "application/json", json.dumps(_doc, indent=1) + chr(10))
+IMPORT_TEMPLATES["topology_csv"] = ("topology-edges-template.csv", "text/csv; charset=utf-8", "".join(line + chr(10) for line in [
+    "source,target,ports,reachability,evidence_ref,reviewer",
+    "internet,web-01,443,allowed,fw-export rule 10,alice",
+    "web-01,hr-01,8080,unknown,internal segment not in the export (unknown - not blocked),alice",
+]))
 COMMON_TZ = ["Asia/Tokyo", "UTC", "Asia/Singapore", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles"]
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 ALL_TZ = frozenset(available_timezones()) | {"UTC"}

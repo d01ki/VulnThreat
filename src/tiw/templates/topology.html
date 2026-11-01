@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{{ m.page_head("Network Paths", "Which system can reach which, on which ports, and which assets are your crown jewels. Every change is saved as a new topology version; nothing is overwritten.", info, show_import=False) }}
+{{ v.workflow("attack_paths") }}
+
+<div class="two-col">
+  <section class="card" aria-labelledby="add-h">
+    <div class="card-head"><div><h2 id="add-h">Add a path</h2><p class="sub">One row = “source can reach target on these ports”. Use <code>internet</code> as the source for internet-facing services.</p></div></div>
+    {% if assets %}
+    <form method="post" action="/topology/edges" class="stack-form">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+      <label>From <select name="source" required>
+        {% for sname in sources %}<option value="{{ sname }}">{{ sname }}</option>{% endfor %}
+        {% for a in assets %}<option value="{{ a.id }}">{{ a.id }}</option>{% endfor %}
+      </select></label>
+      <label>To <select name="target" required>{% for a in assets %}<option value="{{ a.id }}">{{ a.id }}{% if weights.get(a.id) %} (crown jewel){% endif %}</option>{% endfor %}</select></label>
+      <label>Ports <input type="text" name="ports" placeholder="443 8443" maxlength="200"></label>
+      <label>Reachability <select name="reachability">
+        <option value="allowed">allowed (the connection is permitted)</option>
+        <option value="unknown">unknown (not covered by your data; NOT treated as blocked)</option>
+        <option value="blocked">blocked (explicitly denied)</option>
+      </select></label>
+      <label>Evidence <input type="text" name="evidence_ref" placeholder="e.g. firewall export rule 12" maxlength="500" required></label>
+      <label>Reviewed by <input type="text" name="reviewer" placeholder="your name (empty = unreviewed)" maxlength="120"></label>
+      <details class="small"><summary>Trust relation instead of a network connection</summary>
+        <label>Kind <select name="kind"><option value="network">network</option><option value="trust">trust (e.g. stored credentials)</option></select></label>
+        <label>Needs on source <select name="requires_capability"><option value="">—</option>{% for c in ["user_context", "code_execution", "admin_context"] %}<option>{{ c }}</option>{% endfor %}</select></label>
+        <label>Gives on target <select name="grants_capability"><option value="">—</option>{% for c in ["user_context", "code_execution", "admin_context", "credential_access", "data_access"] %}<option>{{ c }}</option>{% endfor %}</select></label>
+      </details>
+      <button class="btn btn-primary btn-sm" type="submit">Add path</button>
+      <p class="small secondary">Unreviewed “allowed” paths count as asserted but unsupported: attack paths through them are listed as <em>insufficient evidence</em> and excluded from the objective until someone reviews them.</p>
+    </form>
+    {% else %}{{ m.empty("Import assets first", "Paths connect imported assets.", "/import?kind=assets", "Import assets") }}{% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="cj-h">
+    <div class="card-head"><div><h2 id="cj-h">Crown jewels</h2><p class="sub">Give each asset you must protect a weight (1 = normal, higher = more important). Empty or 0 = not a crown jewel. Weights are your choice; they are never derived from CVSS or EPSS.</p></div></div>
+    {% if assets %}
+    <form method="post" action="/topology/objectives">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}">
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Asset</th><th scope="col">Criticality</th><th scope="col">Weight</th></tr></thead>
+        <tbody>{% for a in assets %}<tr><td class="mono">{{ a.id }}<span class="line2">{{ a.name }}</span></td><td>{{ a.criticality }}</td>
+          <td><label class="sr-only" for="w-{{ loop.index }}">Weight for {{ a.id }}</label><input id="w-{{ loop.index }}" class="num-input" type="number" min="0" max="1000" name="w:{{ a.id }}" value="{{ weights.get(a.id, '') }}"></td></tr>{% endfor %}</tbody>
+      </table></div>
+      <button class="btn btn-sm" type="submit" data-x="mt4">Save crown jewels</button>
+    </form>
+    {% if not doc %}<p class="small secondary" data-x="mt2">No topology yet: if you add a path first, assets marked <code>critical</code> become crown jewels with weight 1 (or <code>crown_jewel_weight</code> from assets.csv).</p>{% endif %}
+    {% endif %}
+  </section>
+</div>
+
+<section class="card card-flush" aria-labelledby="cur-h" data-x="mt5">
+  <div class="card-head pad"><div><h2 id="cur-h">Current paths{% if doc %} ({{ doc.edges | length }}){% endif %}</h2>
+    <p class="sub">Resolved state combines the row's review, validity and any linked claims. <a href="/topology.csv">Download as CSV</a> · <a href="/import?kind=topology_csv">Import a CSV</a> (replaces all paths) · <a href="/import/template/topology_csv">CSV template</a></p></div></div>
+  {% if doc and doc.edges %}
+  <div class="table-wrap"><table class="wide-table">
+    <thead><tr><th scope="col">From → to</th><th scope="col">Ports</th><th scope="col">Recorded</th><th scope="col">Resolved</th><th scope="col">Evidence</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for e in doc.edges %}
+      <tr><td><span class="mono">{{ e.source }}</span> → <span class="mono">{{ e.target }}</span><span class="line2 mono">{{ e.id }}</span></td>
+        <td class="mono small">{{ (e.ports or []) | join(" ") or e.kind }}</td>
+        <td class="small">{{ e.reachability }}<span class="line2">{{ "reviewed by " ~ e.reviewer if e.review_state == "reviewed" else "unreviewed" }}</span></td>
+        <td>{% set st = fact.get("edge:" ~ e.id) %}{% if st %}{{ v.fstatus(st) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="small">{{ e.evidence_ref or "" }}{% if e.claim_keys %}<span class="line2 mono">{{ e.claim_keys | join(", ") }}</span>{% endif %}</td>
+        <td><form method="post" action="/topology/edges/{{ e.id | urlencode }}/delete"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}"><button class="btn btn-sm btn-ghost" type="submit" aria-label="Delete path {{ e.id }}">Delete</button></form></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}{{ m.empty("No paths yet", "Add the first path above, or import a CSV with one row per connection.", "/import/template/topology_csv", "Download CSV template") }}{% endif %}
+</section>
+{% if doc %}<p class="small muted" data-x="mt2">{{ doc.description }}</p>{% endif %}
+{% endblock %}

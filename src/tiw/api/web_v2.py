@@ -192,6 +192,92 @@ def add_routes(r: APIRouter, ws: db.Workspace, render: Callable[..., Response], 
         return Response(to_markdown(doc), media_type="text/markdown; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="analysis-{safe}.md"'})
 
+    @r.get("/topology", response_class=HTMLResponse)
+    def topology_page(request: Request, error: str | None = None) -> Response:
+        from sqlalchemy import select
+
+        from tiw.services import topology_builder as tb
+        from tiw.storage.models import Asset
+
+        with db.session_scope(ws) as s:
+            doc = tb.current_document(s)
+            assets = [{"id": a.id, "name": a.name, "criticality": a.criticality}
+                      for a in s.execute(select(Asset).where(Asset.active.is_(True)).order_by(Asset.id)).scalars()]
+            graph = None
+            if doc is not None:
+                try:
+                    graph = triage.analyze_graph(s)["result"]
+                except GraphNotReady:
+                    graph = None
+        fact = {f["fact_id"]: f["status"] for f in graph["facts"]} if graph else {}
+        weights = {o["asset_id"]: o["weight"] for o in (doc or {}).get("objectives", [])}
+        sources = ["internet"] + [f"entry:{e['id']}" for e in (doc or {}).get("entry_points", []) if e["id"] != "internet"]
+        return render(request, "topology.html", {"title": "Network Paths", "nav": "topology", "doc": doc, "assets": assets,
+                                                 "fact": fact, "weights": weights, "sources": sources, "error": None})
+
+    def _topology_result(request: Request, out: Any) -> Response:
+        if out.status in ("succeeded", "duplicate"):
+            return RedirectResponse("/topology?notice=topology_saved", status_code=303)
+        msg = "; ".join(f"{e.get('field') or ''}: {e['reason']}" for e in out.errors[:5])
+        return render(request, "error.html", {"title": "Network paths not saved", "message": msg or "validation failed", "nav": "topology"}, 422)
+
+    @r.post("/topology/edges")
+    def topology_add(request: Request, csrf_token: str = Form(""), source: str = Form(""), target: str = Form(""),
+                     ports: str = Form(""), reachability: str = Form("allowed"), evidence_ref: str = Form(""),
+                     reviewer: str = Form(""), kind: str = Form("network"), requires_capability: str = Form(""),
+                     grants_capability: str = Form(""), valid_until: str = Form("")) -> Response:
+        from tiw.services import topology_builder as tb
+
+        if not check_csrf(request, csrf_token):
+            return forbidden(request)
+        row = {"source": source, "target": target, "ports": ports, "reachability": reachability, "evidence_ref": evidence_ref,
+               "reviewer": reviewer, "kind": kind, "requires_capability": requires_capability, "grants_capability": grants_capability,
+               "valid_until": valid_until}
+        row = {k: v[:500] for k, v in row.items() if v}
+        return _topology_result(request, tb.apply_change(ws, add=row))
+
+    @r.post("/topology/edges/{edge_id}/delete")
+    def topology_delete(request: Request, edge_id: str, csrf_token: str = Form("")) -> Response:
+        from tiw.services import topology_builder as tb
+
+        if not check_csrf(request, csrf_token):
+            return forbidden(request)
+        try:
+            out = tb.apply_change(ws, delete=edge_id)
+        except LookupError:
+            return render(request, "error.html", {"title": "Edge not found", "message": "This edge is not in the current topology.", "nav": "topology"}, 404)
+        return _topology_result(request, out)
+
+    @r.post("/topology/objectives")
+    async def topology_objectives(request: Request) -> Response:
+        from sqlalchemy import select
+
+        from tiw.services import topology_builder as tb
+        from tiw.storage.models import Asset
+
+        form = await request.form()
+        if not check_csrf(request, str(form.get("csrf_token", ""))):
+            return forbidden(request)
+        chosen = []
+        with db.session_scope(ws) as s:
+            for a in s.execute(select(Asset).where(Asset.active.is_(True)).order_by(Asset.id)).scalars():
+                raw = str(form.get(f"w:{a.id}", "")).strip()
+                if not raw or raw == "0":
+                    continue
+                if not raw.isdigit() or not 0 < int(raw) <= 1000:
+                    return render(request, "error.html", {"title": "Invalid weight", "message": f"Weight for {a.id} must be an integer 1-1000.", "nav": "topology"}, 422)
+                chosen.append({"id": f"OBJ-{a.id}"[:58], "asset_id": a.id, "label": f"{a.name} (crown jewel)", "weight": int(raw)})
+        return _topology_result(request, tb.apply_change(ws, objectives=chosen))
+
+    @r.get("/topology.csv")
+    def topology_csv(request: Request) -> Response:
+        from tiw.services import topology_builder as tb
+
+        with db.session_scope(ws) as s:
+            doc = tb.current_document(s)
+        body = tb.to_csv(doc) if doc else ",".join(tb.EDGE_CSV_COLUMNS) + chr(10)
+        return Response(body, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="topology-edges.csv"'})
+
     @r.get("/import/draft/{kind}")
     def draft_download(request: Request, kind: str) -> Response:
         """Download an editable draft built from imported findings (read-only)."""
