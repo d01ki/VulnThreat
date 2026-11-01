@@ -3,7 +3,6 @@
 {% import "macros_v2.html" as v with context %}
 {% block content %}
 {{ m.page_head(title, "Attack-path triage needs a topology, exploit preconditions and (for the lab) a remediation catalog. No WAF, IDS or SIEM logs are required.", info) }}
-{{ v.workflow(nav) }}
 <section class="card">
   {{ m.empty("Not set up yet", message, "/topology", "Describe network paths", "/import?kind=topology_csv", "Import a paths CSV") }}
   <ol class="small secondary pad">

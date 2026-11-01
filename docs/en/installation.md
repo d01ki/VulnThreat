@@ -67,5 +67,5 @@ Inside the container the server binds to `0.0.0.0`, because the container itself
 | Setting | How |
 |---|---|
 | Display timezone (default `Asia/Tokyo`) | Settings page, or `tiw set timezone UTC` |
-| Brand name (default "Threat Workbench") | `tiw set brand_name "…"` or `TIW_BRAND_NAME` before `tiw init` |
+| Brand name (default "VulnThreat") | `tiw set brand_name "…"` or `TIW_BRAND_NAME` before `tiw init` |
 | Fixed clock (tests/demos) | Set by the demo per step; or `TIW_FIXED_NOW=2026-10-01T09:00:00Z` |

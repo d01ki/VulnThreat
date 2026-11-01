@@ -124,6 +124,9 @@ def test_onboarding_and_templates(live_ws):
     r = c.get("/")
     assert "Get started" in r.text and "0 of 5 done" in r.text and "Synthetic workspace" not in r.text
     assert c.get("/guide").status_code == 200
+    start = c.get("/start")
+    assert start.status_code == 200 and "Which fix breaks the most attack paths?" in start.text
+    assert 'aria-label="Workflow"' in start.text and 'href="/remediation-lab"' in start.text
     for kind in ("assets", "findings", "observations"):
         body = c.get(f"/import/template/{kind}").content
         out = imp(live_ws, kind, body, dry_run=True)
@@ -144,7 +147,7 @@ def test_ui_fetch_requires_csrf(live_ws):
 def test_no_intel_jargon_in_ui(live_ws):
     live_setup(live_ws)
     c = TestClient(create_app(live_ws, extra_hosts=("testserver",)))
-    for p in ["/", "/threats?scope=all", "/guide", "/sources", "/assets"]:
+    for p in ["/", "/start", "/threats?scope=all", "/guide", "/sources", "/assets"]:
         assert "intel" not in c.get(p).text.lower().replace("intelligence-", "")
 
 

@@ -1,28 +1,14 @@
 // Minimal progressive enhancement. Every page works without JavaScript.
 (function () {
   "use strict";
-  var sidebar = document.getElementById("sidebar");
-  var toggle = document.getElementById("nav-toggle");
-  function closeNav() {
-    if (!sidebar || !toggle) return;
-    sidebar.classList.remove("open");
-    toggle.setAttribute("aria-expanded", "false");
-  }
-  if (toggle && sidebar) {
-    toggle.addEventListener("click", function () {
-      var open = !sidebar.classList.contains("open");
-      sidebar.classList.toggle("open", open);
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      if (open) {
-        var first = sidebar.querySelector("a");
-        if (first) first.focus();
-      }
-    });
+  // "More" menu (a native <details>): close on Escape or a click outside.
+  var more = document.getElementById("more-menu");
+  if (more) {
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && sidebar.classList.contains("open")) { closeNav(); toggle.focus(); }
+      if (e.key === "Escape" && more.open) { more.open = false; more.querySelector("summary").focus(); }
     });
     document.addEventListener("click", function (e) {
-      if (sidebar.classList.contains("open") && !sidebar.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) closeNav();
+      if (more.open && !more.contains(e.target)) more.open = false;
     });
   }
 

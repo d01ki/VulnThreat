@@ -57,7 +57,7 @@
     {% if d.activity.has_data %}
     <svg class="chart" viewBox="0 0 {{ chart.w }} {{ chart.h }}" role="img" aria-labelledby="activity-h activity-desc">
       <desc id="activity-desc">Line chart of public reports and sensor events. The data table below lists every value.</desc>
-      <defs><pattern id="gap-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="#26324b"/></pattern></defs>
+      <defs><pattern id="gap-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="#c9d3cf"/></pattern></defs>
       {% for g in chart.gaps %}<rect class="gap" x="{{ g.x }}" y="{{ chart.top }}" width="{{ g.w }}" height="{{ chart.bottom - chart.top }}"/>{% endfor %}
       {% for g in chart.grid %}
         <line class="grid-line" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ g.y }}" y2="{{ g.y }}"/>
@@ -105,7 +105,7 @@
           {% endfor %}
         </g>
         <text x="50%" y="48%" text-anchor="middle" font-size="24" font-weight="600">{{ donut.total }}</text>
-        <text x="50%" y="62%" text-anchor="middle" font-size="11" fill="#8999b4">threats</text>
+        <text x="50%" y="62%" text-anchor="middle" font-size="11" fill="#627477">threats</text>
       </svg>
       <ul class="legend-list">
         {% for e in d.evidence_status %}

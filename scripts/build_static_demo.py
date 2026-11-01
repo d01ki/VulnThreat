@@ -200,8 +200,8 @@ UNAVAILABLE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><met
 """.replace("REPO", REPO_URL)
 
 INDEX = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="0; url=step1/attack-paths.html"><title>VulnThreat attack-path demo</title></head>
-<body><p><a href="step1/attack-paths.html">Open the static attack-path demo</a> · <a href="REPO">Source code</a></p></body></html>
+<meta http-equiv="refresh" content="0; url=step1/start.html"><title>VulnThreat demo</title></head>
+<body><p><a href="step1/start.html">Open the static VulnThreat demo</a> · <a href="REPO">Source code</a></p></body></html>
 """.replace("REPO", REPO_URL)
 
 
@@ -232,7 +232,7 @@ def build(out: Path) -> dict[str, int]:
         for step in (1, 2):
             if step == 2:
                 demo.advance(ws, 2, "attack-path")
-            seeds = ["/attack-paths", "/topology", "/remediation-lab", "/robustness", "/analysis-runs", "/", "/threats",
+            seeds = ["/start", "/attack-paths", "/topology", "/remediation-lab", "/robustness", "/analysis-runs", "/", "/threats",
                      "/assets", "/investigations", "/observations", "/sources", "/import", "/guide", "/settings"]
             seeds += form_variants(client)
             pages = crawl(client, seeds)

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero" aria-labelledby="hero-h">
+  <div class="hero-copy">
+    <h1 id="hero-h">Which fix breaks the most attack paths?</h1>
+    <p class="hero-lede">{{ info.brand_name }} joins your network paths, scanner findings and reviewed evidence into routes from an entry point to the systems you must protect. It then picks the fixes that cut the most routes within your effort budget, and shows whether that choice still holds if one piece of evidence turns out to be wrong.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary btn-lg" href="/attack-paths">Open Attack Paths</a>
+      <a class="btn btn-lg" href="/topology">Enter your network paths</a>
+    </div>
+  </div>
+  <figure class="hero-map">
+    <svg viewBox="0 0 560 270" role="img" aria-labelledby="map-t map-d">
+      <title id="map-t">Example: two routes from the internet to the finance database</title>
+      <desc id="map-d">Internet to public web to payments API to finance DB, and internet to VPN gateway to payments API to finance DB. The VPN to API connection is unconfirmed. Patching the payments API cuts both routes.</desc>
+      <g class="m-edges">
+        <path class="m-e" pathLength="1" d="M66 135 L170 62"/>
+        <path class="m-e" pathLength="1" d="M66 135 L170 208"/>
+        <path class="m-e" pathLength="1" d="M226 62 L322 128"/>
+        <path class="m-e m-unknown" d="M226 208 L322 142"/>
+        <path class="m-e m-cut" pathLength="1" d="M378 135 L470 135"/>
+      </g>
+      <g class="m-nodes">
+        <g class="m-n m-entry"><rect x="14" y="117" width="58" height="36" rx="18"/><text x="43" y="140">Internet</text></g>
+        <g class="m-n"><rect x="150" y="44" width="96" height="36" rx="5"/><text x="198" y="67">public web</text></g>
+        <g class="m-n"><rect x="150" y="190" width="96" height="36" rx="5"/><text x="198" y="213">VPN gateway</text></g>
+        <g class="m-n m-fix"><rect x="300" y="115" width="100" height="40" rx="5"/><text x="350" y="140">payments API</text></g>
+        <g class="m-n m-crown"><rect x="460" y="113" width="88" height="44" rx="5"/><text x="504" y="140">finance DB</text></g>
+      </g>
+      <g class="m-notes">
+        <text x="330" y="240" class="m-note m-note-unknown">firewall rule not yet reviewed</text>
+        <path class="m-x" d="M418 125 l12 20 M430 125 l-12 20"/>
+        <text x="420" y="100" class="m-note m-note-fix">patch here: both routes cut</text>
+      </g>
+    </svg>
+    <figcaption>Example from the synthetic demo. Solid lines are backed by reviewed evidence; the dashed line is still unconfirmed.</figcaption>
+  </figure>
+</section>
+
+<section class="steps" aria-labelledby="steps-h">
+  <h2 id="steps-h">How a decision is made</h2>
+  <ol class="step-list">
+    <li>
+      <a class="step-link" href="/attack-paths">
+        <span class="step-n" aria-hidden="true">1</span>
+        <strong>Attack Paths</strong>
+        <span>Each route from an entry point to a crown jewel, labelled supported, conditional, insufficient evidence or contradicted. Every connection links to the record that backs it.</span>
+      </a>
+    </li>
+    <li>
+      <a class="step-link" href="/remediation-lab">
+        <span class="step-n" aria-hidden="true">2</span>
+        <strong>Remediation Lab</strong>
+        <span>Set an effort budget. The lab finds the set of fixes that cuts the most routes and compares it, under the same budget, with fixing by CVSS, EPSS, KEV or asset criticality.</span>
+      </a>
+    </li>
+    <li>
+      <a class="step-link" href="/robustness">
+        <span class="step-n" aria-hidden="true">3</span>
+        <strong>Robustness</strong>
+        <span>Withdraw a claim, mark a connection as unknown, or treat a finding as possibly not applicable. You see whether the recommended fix changes, and which piece of evidence caused it.</span>
+      </a>
+    </li>
+  </ol>
+</section>
+
+<section class="limits" aria-labelledby="limits-h">
+  <h2 id="limits-h">What it does not do</h2>
+  <ul>
+    <li><strong>No WAF, IDS or SIEM logs needed.</strong> It works from topology, findings and the evidence you record.</li>
+    <li><strong>No scanning or exploits.</strong> It never touches your hosts. The only network calls are KEV and EPSS downloads you start.</li>
+    <li><strong>No breach probabilities.</strong> A route is a hypothesis to check. CVSS, EPSS and KEV are shown as inputs, not as likelihoods.</li>
+  </ul>
+  <p class="limits-more">Need your own data in it? Load <code>assets.csv</code> and <code>findings.csv</code> on <a href="/import">Import</a>, then add connections on <a href="/topology">Network Paths</a>. The per-CVE exploitation view is under More.</p>
+</section>
+{% endblock %}

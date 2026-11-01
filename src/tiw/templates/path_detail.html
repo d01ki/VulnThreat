@@ -11,7 +11,6 @@
   </div>
   <div class="head-actions">{{ v.pstatus(p.status) }}{% if p.counted %}<span class="badge s-ok">counted</span>{% else %}<span class="badge b-inactive">excluded from objective</span>{% endif %}{{ m.mode_badge(info) }}</div>
 </div>
-{{ v.workflow("evidence") }}
 
 <section class="card why" aria-labelledby="st-h">
   <div class="card-head"><div><h2 id="st-h">Deterministic verification outcome</h2><p class="sub">Evidence snapshot <span class="mono">{{ x.evidence_hash[:16] }}</span> · evaluated at {{ x.clock }}</p></div></div>

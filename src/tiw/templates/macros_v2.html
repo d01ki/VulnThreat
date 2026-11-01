@@ -1,11 +1,3 @@
-{% macro workflow(active) -%}
-<nav class="workflow" aria-label="Attack-path workflow">
-  {%- for key, href, label in [("attack_paths", "/attack-paths", "1 Attack Paths"), ("evidence", "/attack-paths#paths", "2 Evidence"), ("lab", "/remediation-lab", "3 Remediation Lab"), ("robustness", "/robustness", "4 Decision Robustness")] -%}
-  <a href="{{ href }}" {% if active == key %}aria-current="step"{% endif %}>{{ label }}</a>{% if not loop.last %}<span class="wf-sep" aria-hidden="true">›</span>{% endif %}
-  {%- endfor -%}
-</nav>
-{%- endmacro %}
-
 {% macro pstatus(s) -%}
 {%- set labels = {"supported": "Supported", "conditional": "Conditional", "insufficient_evidence": "Insufficient evidence", "contradicted": "Contradicted", "absent": "Absent"} -%}
 <span class="badge ps-{{ s }}">{{ labels.get(s, s) }}</span>
