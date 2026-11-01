@@ -51,6 +51,10 @@ Last updated: 2026-11-01. Baseline before v2: 123 tests passing. Now: **226 pass
 - [x] Drafts generated from imported findings (`tiw draft …`, Import screen button, `/api/v1/drafts`): curated entries kept, missing ones appended; `service_ports: ["any"]` adds an explicit unknown fact so drafted paths stay conditional; efforts are labelled placeholders
 - [x] Simplified topology input: edge CSV (`tiw import topology-csv`, Import kind `topology_csv`) and the Network Paths screen (add/delete paths, crown-jewel weights); CSV export round-trips the demo topology with identical path ids and states; converted documents go through the normal topology validation; errors are mapped to CSV lines; typos never create entry points
 
+## Hosting
+
+- [x] Static GitHub Pages snapshot of the synthetic demo (`scripts/build_static_demo.py`, `.github/workflows/pages.yml`): ~1,080 pre-rendered pages, link check (0 broken), browser check 19/19 (navigation, form variants, step switch, disabled POSTs, mobile overflow, no failed requests/console errors). Read-only by construction
+
 ## Design decisions and deviations
 
 | # | Topic | Decision |

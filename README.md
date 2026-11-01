@@ -12,6 +12,8 @@ Public exploitation reports + attacks seen on your own sensors → a clear, expl
 
 ## New in v2: evidence-grounded attack paths and counterfactual patch triage
 
+**Try it in the browser (no install):** https://d01ki.github.io/VulnThreat/ — a read-only, pre-rendered snapshot of the synthetic demo (steps 1 and 2). Imports, editing and arbitrary what-if combinations need the local tool.
+
 No WAF, IDS or SIEM logs. No API keys. No exploit execution.
 
 1. **Attack Paths**: model paths from entry points to crown jewels, built from your topology, findings and structured preconditions. Each path is `supported`, `conditional`, `insufficient_evidence` or `contradicted`, and every edge links to its evidence.
