@@ -19,6 +19,7 @@ demo_app = typer.Typer(help="Offline synthetic demo scenarios (A-D and attack-pa
 app.add_typer(demo_app, name="demo")
 app.add_typer(v2.graph_app, name="graph")
 app.add_typer(v2.triage_app, name="triage")
+app.add_typer(v2.draft_app, name="draft")
 
 DataDir = typer.Option(None, "--data-dir", help="Workspace directory (default: $TIW_DATA_DIR or ./.tiw)")
 DemoDir = typer.Option(".tiw-demo", "--data-dir", help="Demo workspace directory (kept separate from real data)")

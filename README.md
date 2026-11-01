@@ -27,6 +27,15 @@ uv run tiw triage optimize --budget 2 --data-dir .tiw-demo
 
 Expected: the graph-aware optimum patches the shared payments-API choke point (weighted paths 17 → 2), while highest-CVSS-first under the same budget leaves 5. Retracting one runbook claim flips the recommendation, and the decision diff names the claim. Walkthrough: [Arsenal demo](docs/ARSENAL_DEMO.md).
 
+With your own data, you write `assets.csv`, `findings.csv` and `topology.json` (templates on the Import screen). The rest can be drafted from your findings:
+
+```powershell
+uv run tiw import assets assets.csv; uv run tiw import findings findings.csv
+uv run tiw import topology topology.json
+uv run tiw draft all --import      # exploit conditions + remediations, unreviewed placeholders
+uv run tiw triage optimize --budget 3
+```
+
 Paths are hypotheses over recorded data, not observed attacks. CVSS, EPSS and KEV are not breach probabilities; scenario counts are not confidence scores.
 
 | Remediation Lab | Decision Robustness |

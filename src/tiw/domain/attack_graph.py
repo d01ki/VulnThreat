@@ -301,6 +301,15 @@ class Path:
         }
 
 
+ANY_PORT = "any"
+
+
+def matching_ports(service_ports: Iterable[str], open_ports: Iterable[str]) -> list[str]:
+    """Ports over which a service can be reached. ``any`` (port not recorded) matches every open port."""
+    sp, op = set(service_ports), sorted(set(open_ports))
+    return op if ANY_PORT in sp else [p for p in op if p in sp]
+
+
 def path_id(entry: str, objective_id: str, hops: Iterable[Hop]) -> str:
     key = json.dumps([entry, objective_id, [(h.edge_id, h.via) for h in hops]], separators=(",", ":"))
     return "PATH-" + hashlib.sha256(key.encode()).hexdigest()[:10].upper()
@@ -416,7 +425,7 @@ def enumerate_paths(
                 continue
             open_ports = tuple(p for p in e.ports if (e.target, p) not in removed_ports)
             for x in exploits_on.get(e.target, []):
-                if not set(x.service_ports) & set(open_ports):
+                if not matching_ports(x.service_ports, open_ports):
                     continue
                 if not _cap_ok(cap, x.requires_capability):
                     continue

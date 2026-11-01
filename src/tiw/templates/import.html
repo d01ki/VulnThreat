@@ -26,8 +26,21 @@
   </section>
   <section class="card span-5" aria-labelledby="fmt-h">
     <div class="card-head"><div><h2 id="fmt-h">Expected formats</h2></div></div>
-    <ul class="reason-list">{% for k in kinds %}<li><code>{{ k }}</code>{% if k in ("assets", "findings", "observations") %} <a class="small" href="/import/template/{{ k }}">Download template</a>{% endif %}<br><span class="secondary">{{ kind_help[k] }}</span></li>{% endfor %}</ul>
+    <ul class="reason-list">{% for k in kinds %}<li><code>{{ k }}</code>{% if k in templates %} <a class="small" href="/import/template/{{ k }}">Download template</a>{% endif %}{% if k in ("exploit_conditions", "remediations") and has_findings %} · <a class="small" href="/import/draft/{{ k }}">Draft from your findings</a>{% endif %}<br><span class="secondary">{{ kind_help[k] }}</span></li>{% endfor %}</ul>
+    <p class="chart-notes">Minimum for attack paths: <code>assets</code> + <code>findings</code> + <code>topology</code>. Exploit conditions and remediations can be drafted from your findings below.</p>
     <p class="chart-notes">Article text and log content are stored as data only. Nothing inside a file is executed or followed as an instruction.</p>
   </section>
 </div>
+
+<section class="card" aria-labelledby="draft-h" data-x="mt5">
+  <div class="card-head"><div><h2 id="draft-h">Generate drafts from your findings</h2>
+    <p class="sub">Creates exploit conditions (one per vulnerability) and remediation actions (one patch per finding) from what you already imported. Nothing is invented: service ports are recorded as <code>any</code>, which keeps every path <em>conditional</em> until you fill them in, and every effort is a placeholder of 1. Existing entries are kept.</p></div></div>
+  {% if has_findings %}
+  <div class="actions-row">
+    <form method="post" action="/import/drafts"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}"><button class="btn btn-primary btn-sm" type="submit">Generate and import drafts</button></form>
+    <a class="btn btn-sm" href="/import/draft/exploit_conditions">Download exploit-conditions draft</a>
+    <a class="btn btn-sm" href="/import/draft/remediations">Download remediations draft</a>
+  </div>
+  {% else %}<p class="small secondary">Import assets and findings first.</p>{% endif %}
+</section>
 {% endblock %}

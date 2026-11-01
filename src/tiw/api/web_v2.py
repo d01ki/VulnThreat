@@ -192,6 +192,39 @@ def add_routes(r: APIRouter, ws: db.Workspace, render: Callable[..., Response], 
         return Response(to_markdown(doc), media_type="text/markdown; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="analysis-{safe}.md"'})
 
+    @r.get("/import/draft/{kind}")
+    def draft_download(request: Request, kind: str) -> Response:
+        """Download an editable draft built from imported findings (read-only)."""
+        from tiw.services import drafts
+
+        if kind not in drafts.DRAFT_KINDS:
+            return Response("unknown draft", status_code=404, media_type="text/plain")
+        try:
+            body = drafts.draft_bytes(ws, kind)
+        except drafts.DraftError as exc:
+            return render(request, "error.html", {"title": "Nothing to draft", "message": str(exc), "nav": "import"}, 409)
+        return Response(body, media_type="application/json", headers={"Content-Disposition": f'attachment; filename="{kind}-draft.json"'})
+
+    @r.post("/import/drafts")
+    def draft_import(request: Request, csrf_token: str = Form("")) -> Response:
+        """Generate exploit-condition and remediation drafts from findings and import them."""
+        from tiw.services import drafts
+
+        if not check_csrf(request, csrf_token):
+            return forbidden(request)
+        try:
+            results = drafts.draft_and_import(ws, actor="ui")
+        except drafts.DraftError as exc:
+            return render(request, "error.html", {"title": "Nothing to draft", "message": str(exc), "nav": "import"}, 409)
+        failed = next((x for x in results if x["status"] == "failed"), None)
+        if failed:
+            msg = "; ".join(f"{e['field']}: {e['reason']}" for e in failed["errors"][:5])
+            return render(request, "error.html", {"title": "Draft not imported", "message": f"{failed['kind']}: {msg}", "nav": "import"}, 422)
+        with db.session_scope(ws) as s:
+            has_topology = triage.graph_svc.latest_input(s, "topology") is not None
+        target = "/attack-paths" if has_topology else "/import?kind=topology"
+        return RedirectResponse(f"{target}{'&' if '?' in target else '?'}notice=drafts_imported", status_code=303)
+
     @r.post("/demo/attack-path/reset")
     def demo_reset(request: Request, csrf_token: str = Form(""), step: str = Form("1")) -> Response:
         """One-click reproducible reset of the synthetic attack-path demo (refuses live workspaces)."""

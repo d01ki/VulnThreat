@@ -89,6 +89,30 @@ def add_routes(r: APIRouter, ws: db.Workspace, api_error: Any) -> None:
             out |= {"run": triage.run_meta(run), "created": created}
         return out
 
+    @r.get("/drafts/{kind}")
+    def get_draft(kind: Literal["exploit_conditions", "remediations"]) -> Any:
+        """Editable draft built from imported findings (read-only)."""
+        import json
+
+        from tiw.services import drafts
+
+        try:
+            return json.loads(drafts.draft_bytes(ws, kind))
+        except drafts.DraftError as exc:
+            raise api_error(409, "no_findings", str(exc)) from None
+
+    @r.post("/drafts/import", status_code=201)
+    def post_draft_import() -> Any:
+        from tiw.services import drafts
+
+        try:
+            results = drafts.draft_and_import(ws, actor="api")
+        except drafts.DraftError as exc:
+            raise api_error(409, "no_findings", str(exc)) from None
+        if any(x["status"] == "failed" for x in results):
+            raise api_error(422, "validation_failed", "draft import rejected; nothing was written", results)
+        return {"results": results}
+
     @r.get("/analysis-runs")
     def get_runs(limit: int = Query(50, ge=1, le=500)) -> Any:
         with db.session_scope(ws) as s:

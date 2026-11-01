@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
-from tiw.domain.attack_graph import Enumeration, GraphModel, Path
+from tiw.domain.attack_graph import Enumeration, GraphModel, Path, matching_ports
 
 OPTIMIZER_VERSION = "portfolio-1"
 ACTION_TYPES = ("patch_finding", "disable_service", "restrict_edge", "isolate_asset", "enabler")
@@ -117,7 +117,7 @@ def breaks(action: Action, path: Path, model: GraphModel) -> bool:
             edge = next((e for e in model.edges if e.id == h.edge_id), None)
             if x and edge:
                 open_ports = {p for p in edge.ports if (edge.target, p) not in r.ports}
-                if not set(x.service_ports) & open_ports:
+                if not matching_ports(x.service_ports, open_ports):
                     return True
     return False
 

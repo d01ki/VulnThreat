@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from tiw.domain.attack_graph import Enumeration, GraphModel
+from tiw.domain.attack_graph import Enumeration, GraphModel, matching_ports
 
 HYPOTHESIS_SCHEMA_VERSION = "1.0"
 GENERATOR_VERSION = "rule-hypotheses-1"
@@ -114,7 +114,7 @@ def rule_based(model: GraphModel) -> list[Hypothesis]:
             ))
             continue
         for x in sorted(model.exploits, key=lambda x: x.finding_id):
-            if x.asset_id != e.target or not set(x.service_ports) & set(e.ports):
+            if x.asset_id != e.target or not matching_ports(x.service_ports, e.ports):
                 continue
             n += 1
             ev_ids = sorted({ev.id for ev in e.reachability.evidence} | {ev.id for ev in x.applicability.evidence}
@@ -123,7 +123,7 @@ def rule_based(model: GraphModel) -> list[Hypothesis]:
             assumptions = [f"{c.id} declared {c.declared}" for c in x.conditions if c.declared != "satisfied"]
             out.append(Hypothesis(
                 f"H-{n:03d}", e.source, e.target, x.vulnerability_id, conds, ev_ids, assumptions,
-                f"Rule: {e.source} reaches {e.target} on {', '.join(sorted(set(x.service_ports) & set(e.ports)))} where {x.vulnerability_id} is recorded (candidate, not confirmed exploitation)",
+                f"Rule: {e.source} reaches {e.target} on {', '.join(matching_ports(x.service_ports, e.ports))} where {x.vulnerability_id} is recorded (candidate, not confirmed exploitation)",
             ))
             if n >= MAX_HYPOTHESES:
                 return out
@@ -209,7 +209,7 @@ def verify(h: Hypothesis, model: GraphModel, enum: Enumeration) -> dict[str, Any
                 matches.append((e, None))
             continue
         for x in model.exploits:
-            if x.asset_id == e.target and x.vulnerability_id == h.candidate_vulnerability_id and set(x.service_ports) & set(e.ports):
+            if x.asset_id == e.target and x.vulnerability_id == h.candidate_vulnerability_id and matching_ports(x.service_ports, e.ports):
                 matches.append((e, x))
     notes = []
     if h.technique_id in PLACEHOLDER_TECHNIQUES:

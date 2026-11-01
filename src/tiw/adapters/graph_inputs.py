@@ -296,8 +296,8 @@ def parse_exploit_conditions(data: bytes, ctx: ParseContext) -> ParseResult:
             result.error(i + 1, f"{loc}.vulnerability_id", f"duplicate entry for {vid}")
             continue
         ports = v.get("service_ports")
-        if not isinstance(ports, list) or not ports or not all(isinstance(p, str) and PORT_RE.match(p) for p in ports):
-            result.error(i + 1, f"{loc}.service_ports", "service_ports must be a non-empty list like ['tcp/443']")
+        if not isinstance(ports, list) or not ports or not all(isinstance(p, str) and (PORT_RE.match(p) or p == "any") for p in ports):
+            result.error(i + 1, f"{loc}.service_ports", "service_ports must be a non-empty list like ['tcp/443'] (or ['any'] if the port is not recorded)")
             continue
         req, grants = v.get("requires_capability", "network_access"), v.get("grants_capability")
         if req not in CAPABILITIES or grants not in CAPABILITIES:
