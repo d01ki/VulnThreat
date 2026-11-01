@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{{ m.page_head("Remediation Lab", "Choose the action portfolio that removes the most modelled attacker paths to crown jewels within an effort budget, and compare it with score-based rankings under the same budget.", info, show_import=False) }}
+{{ v.workflow("lab") }}
+{{ v.demo_controls(info, csrf, csrf_field) }}
+
+<form class="filters card pad" method="get" action="/remediation-lab">
+  <label>Effort budget ({{ o.cost_unit }}) <input type="number" name="budget" min="0" max="1000" value="{{ budget }}" class="num-input"></label>
+  <label>Objective <select name="objective">{% for k in ["weighted-paths", "reachable-targets"] %}<option value="{{ k }}" {% if objective == k %}selected{% endif %}>{{ k }}</option>{% endfor %}</select></label>
+  <label>Max downtime per action <select name="downtime_cap"><option value="">any</option>{% for k in ["none", "low", "high"] %}<option value="{{ k }}" {% if downtime_cap == k %}selected{% endif %}>{{ k }}</option>{% endfor %}</select></label>
+  <label>Compare with <select name="compare">{% for b in o.baselines %}<option value="{{ b.name }}" {% if cmp_name == b.name %}selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></label>
+  <button class="btn btn-sm btn-primary" type="submit">Compute</button>
+</form>
+<p class="small secondary" data-x="mt2">{{ o.objective.semantics }}</p>
+
+<div class="two-col" data-x="mt4">
+  <section class="card pick" aria-labelledby="sel-h">
+    <div class="card-head"><div><h2 id="sel-h">Graph-aware portfolio</h2><p class="sub">{% if o.exact %}Exact optimum over {{ o.evaluated_portfolios }} subsets{% else %}Approximate ({{ o.method }}); optimality gap unknown{% endif %}</p></div></div>
+    <p class="big">{{ v.actions(o.selected.actions) }}</p>
+    <dl class="facts">
+      <div><dt>Effort</dt><dd class="num">{{ o.selected.effort }} / {{ budget }}</dd></div>
+      <div><dt>{{ objective }}</dt><dd class="num">{{ o.before.objective_value }} → <strong>{{ o.selected.objective_value }}</strong></dd></div>
+      <div><dt>Paths broken</dt><dd class="num">{{ o.selected.disrupted_paths | length }}</dd></div>
+      <div><dt>Paths surviving</dt><dd class="num">{{ o.selected.surviving_paths | length }}</dd></div>
+    </dl>
+    <ul class="reason-list">{% for r in o.reasons if r.action %}<li class="small">{{ r.text }}{% if r.verification_status != "verified" %} <span class="badge b-inactive">effect unverified</span>{% endif %}</li>{% endfor %}</ul>
+  </section>
+  <section class="card" aria-labelledby="cmp-h">
+    <div class="card-head"><div><h2 id="cmp-h">Same budget: {{ cmp.name }}</h2><p class="sub">{{ cmp.description }}</p></div></div>
+    <p class="big">{{ v.actions(cmp.actions) }}</p>
+    <dl class="facts">
+      <div><dt>Effort</dt><dd class="num">{{ cmp.effort }} / {{ budget }}</dd></div>
+      <div><dt>{{ objective }}</dt><dd class="num">{{ o.before.objective_value }} → <strong>{{ cmp.objective_value }}</strong></dd></div>
+      <div><dt>Paths broken</dt><dd class="num">{{ cmp.disrupted_paths | length }}</dd></div>
+      <div><dt>Paths surviving</dt><dd class="num">{{ cmp.surviving_paths | length }}</dd></div>
+    </dl>
+    {% if cmp.same_as_optimised %}<p class="small secondary">Same portfolio as the graph-aware optimum.</p>
+    {% else %}<h3 class="h-sm">Why the graph-aware portfolio differs</h3><ul class="reason-list">{% for w in cmp.why_optimised_differs %}<li class="small">{{ w }}</li>{% endfor %}</ul>{% endif %}
+    {% for n in cmp.notes %}<p class="small muted">{{ n }}</p>{% endfor %}
+  </section>
+</div>
+
+<section class="card card-flush" aria-labelledby="base-h" data-x="mt5">
+  <div class="card-head pad"><div><h2 id="base-h">Equal-budget baselines</h2><p class="sub">Every method gets the same budget, actions and constraints, and is scored by the same objective.</p></div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Method</th><th scope="col">Portfolio</th><th scope="col" class="r">Effort</th><th scope="col" class="r">{{ objective }}</th><th scope="col" class="r">Surviving paths</th></tr></thead>
+    <tbody>
+      <tr class="row-hl"><td><strong>graph-aware optimum</strong><span class="line2 secondary">provenance + uncertainty states</span></td><td>{{ v.actions(o.selected.actions) }}</td><td class="r num">{{ o.selected.effort }}</td><td class="r num"><strong>{{ o.selected.objective_value }}</strong></td><td class="r num">{{ o.selected.surviving_paths | length }}</td></tr>
+      {% for b in o.baselines %}<tr><td>{{ b.name }}<span class="line2 secondary">{{ b.description }}</span></td><td>{{ v.actions(b.actions) }}</td><td class="r num">{{ b.effort }}</td><td class="r num">{{ b.objective_value }}</td><td class="r num">{{ b.surviving_paths | length }}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<div class="two-col" data-x="mt5">
+  <section class="card" aria-labelledby="ba-h">
+    <div class="card-head"><div><h2 id="ba-h">Before → after</h2><p class="sub">Counted paths under the selected portfolio. Re-simulated on the modified graph: {{ "consistent" if o.resimulation.consistent else "INCONSISTENT (truncation)" }}.</p></div></div>
+    <ul class="list">{% for p in o.paths if p.counted %}
+      <li class="small">{% if p.id in o.selected.disrupted_paths %}<span class="badge s-ok">broken</span>{% else %}<span class="badge u-high">remains</span>{% endif %} <a class="mono" href="/attack-paths/{{ p.id }}">{{ p.id }}</a> {{ v.route(p) }} {{ v.pstatus(p.status) }}</li>
+    {% endfor %}</ul>
+    <h3 class="h-sm" data-x="mt4">Unremediated residual exposure</h3>
+    {% if o.surviving_paths %}<ul class="list">{% for p in o.surviving_paths %}<li class="small"><a class="mono" href="/attack-paths/{{ p.id }}">{{ p.id }}</a> to {{ p.objective_label }} (weight {{ p.weight }})</li>{% endfor %}</ul>
+    {% else %}<p class="small secondary">No counted path survives. Excluded paths below still need verification.</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="ex-h">
+    <div class="card-head"><div><h2 id="ex-h">Excluded from the objective</h2><p class="sub">Not treated as safe: they rely on assertions without active reviewed evidence.</p></div></div>
+    {% if o.excluded_paths %}<ul class="list">{% for p in o.excluded_paths %}<li class="small"><a class="mono" href="/attack-paths/{{ p.id }}">{{ p.id }}</a> {{ v.route(p) }} {{ v.pstatus(p.status) }}<span class="line2 secondary">open facts: {{ p.unknown_facts | join(", ") }}</span></li>{% endfor %}</ul>
+    {% else %}<p class="small secondary">None.</p>{% endif %}
+    <h3 class="h-sm" data-x="mt4">Single-action effects</h3>
+    <ul class="list">{% for a in o.single_action_effects | sort(attribute="count", reverse=True) %}<li class="small"><span class="mono">{{ a.action }}</span> (effort {{ a.cost }}) breaks {{ a.count }} path(s)</li>{% endfor %}</ul>
+  </section>
+</div>
+
+<div class="two-col" data-x="mt5">
+  <section class="card" aria-labelledby="alt-h">
+    <div class="card-head"><div><h2 id="alt-h">Alternatives and ties</h2><p class="sub">Tie-breaking: {{ o.objective.tie_breaking }}</p></div></div>
+    {% if o.ties %}<p class="small"><strong>Ties</strong> (same objective and effort): {% for t in o.ties %}{{ v.actions(t.actions) }}{% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+    <ul class="list">{% for a in o.alternatives %}<li class="small">{{ v.actions(a.actions) }} · effort {{ a.effort }} · {{ objective }} {{ a.objective_value }}</li>{% else %}<li class="small secondary">No other feasible portfolio.</li>{% endfor %}</ul>
+    {% if o.infeasible_examples %}<h3 class="h-sm" data-x="mt4">Rejected combinations (examples)</h3><ul class="list">{% for x in o.infeasible_examples %}<li class="small">{{ x.actions | join(" + ") }}: {{ x.reasons | join("; ") }}</li>{% endfor %}</ul>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="hist-h">
+    <div class="card-head"><div><h2 id="hist-h">Recorded runs</h2><p class="sub">History is append-only. Recording an identical result is a no-op.</p></div></div>
+    {% if latest %}
+      <p class="small">Latest recorded run <a href="/analysis-runs/{{ latest.id }}">{{ latest.id | short }}</a> ({{ latest.created_at | t }}){% if recorded_same %} matches this computation.{% else %} differs from this computation.{% endif %}</p>
+      {% if history and history.diff %}<h3 class="h-sm" data-x="mt4">Change since the run before</h3><ul class="reason-list">{% for w in history.diff.why %}<li class="small">{{ w }}</li>{% endfor %}</ul>{% endif %}
+    {% else %}<p class="small secondary">No run recorded for these parameters yet.</p>{% endif %}
+    <form method="post" action="/remediation-lab/record" data-x="mt4">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}"><input type="hidden" name="budget" value="{{ budget }}"><input type="hidden" name="objective" value="{{ objective }}"><input type="hidden" name="downtime_cap" value="{{ downtime_cap or '' }}">
+      <button class="btn btn-sm" type="submit">Record this analysis</button>
+    </form>
+  </section>
+</div>
+<div data-x="mt5">{{ v.assumptions(o.assumptions) }}</div>
+<p class="small muted" data-x="mt2">Evidence snapshot <span class="mono">{{ o.evidence_hash[:16] }}</span> · {{ o.algorithm_version }} · computed in {{ runtime_ms }} ms</p>
+{% endblock %}

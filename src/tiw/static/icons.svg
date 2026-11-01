@@ -18,4 +18,8 @@
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9.5 3.5h5M10.5 3.5v5.2L5.4 18a1.5 1.5 0 001.3 2.2h10.6a1.5 1.5 0 001.3-2.2l-5.1-9.3V3.5"/><path d="M7.5 14.5h9"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></symbol>
+  <symbol id="i-graph" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="5.5" r="2.2"/><circle cx="12" cy="18.5" r="2.2"/><circle cx="19.5" cy="12" r="2.2"/><path d="M7 11l3-4M7 13l3 4M14 6.5l3.7 4M14 17.5l3.7-4"/></symbol>
+  <symbol id="i-lab" viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M6 15l4-5 3 3 5-7"/><circle cx="18" cy="6" r="1.4"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-2.5 6h5L5 7zM19 7l-2.5 6h5L19 7z"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 102.2-5.3L4.5 9"/><path d="M4.5 4.5V9H9"/><path d="M12 8v4.2l2.8 1.8"/></symbol>
 </svg>

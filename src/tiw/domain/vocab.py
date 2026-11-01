@@ -21,6 +21,9 @@ REVIEW_STATES = ("unreviewed", "reviewed", "rejected", "retracted", "candidate")
 RELATION_KINDS = ("cites", "duplicates", "supports", "contradicts", "supersedes")
 RELATION_VERIFICATION = ("explicit", "reviewer_confirmed", "candidate")
 PREDICATES = ("exploited_in_wild", "poc_published", "affected_versions", "fixed_versions", "mitigation")
+# v2 graph-evidence predicates: subject is a graph fact ("edge:<id>" or "cond:<vuln>:<id>"), value is bool.
+GRAPH_PREDICATES = ("reachability", "precondition")
+GRAPH_SUBJECT_RE = re.compile(r"^(edge:[A-Za-z0-9_.:-]{1,58}|cond:[A-Za-z0-9_.:-]{1,58})$")
 
 ACTIONS = ("incident_response", "remediate", "investigate", "monitor")
 URGENCIES = ("urgent", "high", "normal", "low")

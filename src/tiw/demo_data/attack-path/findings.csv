@@ -1,0 +1,8 @@
+finding_id,asset_id,vulnerability_id,applicability,observed_at,rationale,evidence_ref,reviewer,expires_at,synthetic
+f-web-101,ap-web-01,DEMO-VULN-101,affected,2026-10-15T00:00:00Z,,,,,true
+f-vpn-105,ap-vpn-01,DEMO-VULN-105,affected,2026-10-15T00:00:00Z,,,,,true
+f-sftp-107,ap-sftp-01,DEMO-VULN-107,affected,2026-10-15T00:00:00Z,,,,,true
+f-api-102,ap-api-01,DEMO-VULN-102,affected,2026-10-15T00:00:00Z,,,,,true
+f-admin-104,ap-admin-01,DEMO-VULN-104,affected,2026-10-15T00:00:00Z,,,,,true
+f-fin-103,ap-finance-db,DEMO-VULN-103,affected,2026-10-15T00:00:00Z,,,,,true
+f-hr-106,ap-hr-db,DEMO-VULN-106,affected,2026-10-15T00:00:00Z,,,,,true

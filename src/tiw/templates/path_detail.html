@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{% set p = x.path %}
+<p class="crumbs"><a href="/attack-paths">Attack Paths</a> / <span class="mono">{{ p.id }}</span></p>
+<div class="page-head">
+  <div>
+    <h1>Evidence Inspector</h1>
+    <p class="lede"><span class="mono">{{ p.id }}</span> to {{ p.objective_label }} · {{ v.route(p) }}</p>
+  </div>
+  <div class="head-actions">{{ v.pstatus(p.status) }}{% if p.counted %}<span class="badge s-ok">counted</span>{% else %}<span class="badge b-inactive">excluded from objective</span>{% endif %}{{ m.mode_badge(info) }}</div>
+</div>
+{{ v.workflow("evidence") }}
+
+<section class="card why" aria-labelledby="st-h">
+  <div class="card-head"><div><h2 id="st-h">Deterministic verification outcome</h2><p class="sub">Evidence snapshot <span class="mono">{{ x.evidence_hash[:16] }}</span> · evaluated at {{ x.clock }}</p></div></div>
+  <ul><li>{{ p.status_text }}</li>
+  {% if p.unknown_facts %}<li>Open facts: {% for f in p.unknown_facts %}<span class="mono">{{ f }}</span>{% if not loop.last %}, {% endif %}{% endfor %}. These stay unknown; they are never read as “safe”.</li>{% endif %}
+  <li>Catalogued actions that would break this path: {% if x.broken_by %}{% for a in x.broken_by %}<span class="tag mono">{{ a }}</span> {% endfor %}{% else %}none{% endif %}.</li></ul>
+</section>
+
+{% for h in x.hops %}
+<section class="card hop" aria-labelledby="hop-{{ loop.index }}" data-x="mt5">
+  <div class="card-head"><div><h2 id="hop-{{ loop.index }}">Hop {{ loop.index }}: <span class="mono">{{ h.source }}</span> → <span class="mono">{{ h.target }}</span></h2>
+    <p class="sub">via {{ h.via }} · edge <a class="mono" href="/attack-paths?edge={{ h.edge_id | urlencode }}">{{ h.edge_id }}</a> · attacker capability afterwards (abstract state): <strong>{{ h.capability | replace("_", " ") }}</strong></p></div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Fact</th><th scope="col">Resolved</th><th scope="col">Evidence (provenance)</th><th scope="col">Reasons</th></tr></thead>
+    <tbody>
+    {% for f in h.facts %}
+      <tr>
+        <td><span class="mono small">{{ f.fact_id }}</span><span class="line2">{{ f.label }}</span><span class="line2 muted">declared {{ f.declared }}</span></td>
+        <td>{{ v.fstatus(f.status) }}</td>
+        <td class="small">
+          {% for e in f.evidence %}
+          <div class="ev{{ '' if e.active else ' ev-off' }}">
+            <span class="tag">{{ e.kind }}</span> <strong>{{ e.polarity }}</strong> <span class="mono">{{ e.id }}</span><br>
+            {{ e.label }}<br>
+            <span class="secondary">review: {{ e.review_state }}{% if e.source %} · source: {{ e.source }}{% endif %}{% if e.observed_at %} · {{ e.observed_at | t }}{% endif %}{% if e.expires_at %} · valid until {{ e.expires_at | t }}{% endif %}</span>
+            {% if not e.active %}<br><span class="badge b-inactive">inactive: {{ e.inactive_reason }}</span>{% endif %}
+            {% if e.quote %}<blockquote class="quote">{{ e.quote }}</blockquote>{% endif %}
+          </div>
+          {% else %}<span class="muted">no evidence recorded</span>{% endfor %}
+        </td>
+        <td class="small mono">{{ f.reasons | join(" ") or "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endfor %}
+<div data-x="mt5">{{ v.assumptions(x.assumptions) }}</div>
+{% endblock %}

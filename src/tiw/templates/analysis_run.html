@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{% set run = doc.run %}{% set r = doc.result %}{% set d = doc.diff %}
+<p class="crumbs"><a href="/analysis-runs">Analysis Runs</a> / <span class="mono">{{ run.id | short }}</span></p>
+<div class="page-head">
+  <div><h1>Analysis run · {{ run.kind }}</h1><p class="lede mono small">{{ run.run_key }} · recorded {{ run.created_at | t }} by {{ run.actor }}</p></div>
+  <div class="head-actions">
+    <a class="btn btn-sm" href="/analysis-runs/{{ run.id }}/export?format=markdown">{{ icon("download", "icon icon-sm") }} Markdown</a>
+    <a class="btn btn-sm" href="/analysis-runs/{{ run.id }}/export?format=json">JSON</a>
+    <a class="btn btn-sm" href="/analysis-runs/{{ run.id }}/export?format=normalized">Normalized JSON</a>
+    {{ m.mode_badge(info) }}
+  </div>
+</div>
+
+<section class="card why" aria-labelledby="diff-h">
+  <div class="card-head"><div><h2 id="diff-h">Decision diff</h2><p class="sub">{% if doc.previous %}Compared with run <a href="/analysis-runs/{{ doc.previous.id }}">{{ doc.previous.id | short }}</a> ({{ doc.previous.created_at | t }}){% else %}First run for these parameters; nothing to compare.{% endif %}</p></div></div>
+  {% if d %}
+    <ul>{% for w in d.why %}<li>{{ w }}</li>{% endfor %}</ul>
+    {% if d.inputs_changed %}<p class="small secondary">Inputs changed: {{ d.inputs_changed | join(", ") }}. Evidence snapshot changed: {{ "yes" if d.evidence_changed else "no" }}.</p>{% elif d.evidence_changed %}<p class="small secondary">Model inputs unchanged; evidence (claims, reviews or clock) changed.</p>{% endif %}
+    {% if d.fact_reasons %}<ul class="list" data-x="mt4">{% for f in d.fact_reasons %}<li class="small"><span class="mono">{{ f.fact_id }}</span> → {{ v.fstatus(f.status) }}
+      <ul>{% for e in f.evidence %}<li><span class="mono">{{ e.id }}</span> {{ e.polarity }} · {{ "active" if e.active else "inactive: " ~ e.inactive_reason }} · {{ e.label }}</li>{% endfor %}</ul></li>{% endfor %}</ul>{% endif %}
+  {% endif %}
+</section>
+
+<section class="card" data-x="mt5" aria-labelledby="sum-h">
+  <div class="card-head"><div><h2 id="sum-h">Result</h2><p class="sub">Evidence snapshot <span class="mono">{{ run.evidence_hash[:16] }}</span> · result <span class="mono">{{ run.result_hash[:16] }}</span> · {{ run.algorithm_version }}</p></div></div>
+  {% if r.kind == "optimize" %}
+    <p class="big">{{ v.actions(r.selected.actions) }}</p>
+    <p class="small secondary">effort {{ r.selected.effort }} / {{ r.params.budget }} · {{ r.objective.name }} {{ r.before.objective_value }} → {{ r.selected.objective_value }} · {{ r.method }}</p>
+    <ul class="reason-list" data-x="mt2">{% for x in r.reasons %}<li class="small">{{ x.text }}</li>{% endfor %}</ul>
+  {% elif r.kind == "robustness" %}
+    <ul class="list">{% for p in r.summary.portfolios %}<li>{{ p.text }}</li>{% endfor %}</ul>
+    <p class="small muted">{{ r.disclaimer }}</p>
+  {% else %}
+    <p>{{ r.counts.paths }} model paths ({{ r.counts.counted_paths }} counted) · by state {{ r.counts.by_status }}</p>
+  {% endif %}
+</section>
+{% if r.assumptions %}<div data-x="mt5">{{ v.assumptions(r.assumptions) }}</div>{% endif %}
+{% endblock %}

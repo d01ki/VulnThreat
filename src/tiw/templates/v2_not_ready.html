@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{{ m.page_head(title, "Attack-path triage needs a topology, exploit preconditions and (for the lab) a remediation catalog. No WAF, IDS or SIEM logs are required.", info) }}
+{{ v.workflow(nav) }}
+<section class="card">
+  {{ m.empty("Not set up yet", message, "/import?kind=topology", "Import topology", "/guide", "How it works") }}
+  <ol class="small secondary pad">
+    <li>Import assets and findings (CSV) as usual.</li>
+    <li>Optionally import reviewed graph claims (claims JSON with predicates <code>reachability</code> / <code>precondition</code>).</li>
+    <li>Import <code>topology.json</code>, then <code>exploit_conditions.json</code>, then <code>remediations.json</code>.</li>
+    <li>Or try the synthetic demo: <code>uv run tiw demo seed --scenario attack-path</code>.</li>
+  </ol>
+</section>
+{% endblock %}

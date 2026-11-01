@@ -1,0 +1,19 @@
+{
+ "schema_version": "1.0",
+ "synthetic": true,
+ "description": "Synthetic remediation catalog. Costs are relative effort units agreed with the (fictional) owners.",
+ "cost_unit": "engineer-days",
+ "source": {"name": "Synthetic change board"},
+ "actions": [
+  {"id": "A-patch-web", "type": "patch_finding", "finding_id": "f-web-101", "label": "Patch portal template engine", "cost": 1, "downtime": "low", "verification_status": "verified"},
+  {"id": "A-patch-vpn", "type": "patch_finding", "finding_id": "f-vpn-105", "label": "Upgrade VPN gateway firmware", "cost": 1, "downtime": "low", "verification_status": "verified"},
+  {"id": "A-patch-sftp", "type": "patch_finding", "finding_id": "f-sftp-107", "label": "Patch partner SFTP daemon", "cost": 1, "downtime": "none", "verification_status": "verified"},
+  {"id": "A-patch-api", "type": "patch_finding", "finding_id": "f-api-102", "label": "Patch payments API and disable debug endpoint", "cost": 2, "downtime": "low", "verification_status": "verified", "preconditions": ["payments release window"]},
+  {"id": "A-patch-admin", "type": "patch_finding", "finding_id": "f-admin-104", "label": "Patch admin console", "cost": 1, "downtime": "none", "verification_status": "verified"},
+  {"id": "A-patch-hr", "type": "patch_finding", "finding_id": "f-hr-106", "label": "Harden HR DB default role", "cost": 1, "downtime": "low", "verification_status": "unverified", "conflict_group": "hr-maintenance-window"},
+  {"id": "A-isolate-hr", "type": "isolate_asset", "asset_id": "ap-hr-db", "label": "Isolate HR DB behind a jump host", "cost": 3, "downtime": "high", "verification_status": "unverified", "conflict_group": "hr-maintenance-window"},
+  {"id": "A-rotate-svc", "type": "restrict_edge", "edge_id": "e-api-hr", "label": "Vault and rotate the HR service-account password", "cost": 1, "downtime": "none", "verification_status": "unverified"},
+  {"id": "A-proxy", "type": "enabler", "label": "Deploy DB access proxy (prerequisite)", "cost": 1, "downtime": "none", "verification_status": "verified"},
+  {"id": "A-restrict-fin", "type": "restrict_edge", "edge_id": "e-api-fin", "label": "Route API to finance DB only via the proxy", "cost": 1, "downtime": "low", "requires": ["A-proxy"], "verification_status": "unverified"}
+ ]
+}

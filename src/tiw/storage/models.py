@@ -323,6 +323,38 @@ class ImportRun(Base):
     source_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
+class GraphInput(Base):
+    """Versioned v2 model inputs (topology / exploit_conditions / remediations). Latest seq per kind wins."""
+
+    __tablename__ = "graph_inputs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    seq: Mapped[int] = mapped_column(Integer, default=0)
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    source_revision_id: Mapped[str] = mapped_column(ForeignKey("source_revisions.id"))
+    content_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class AnalysisRun(Base):
+    """Immutable record of one graph / optimisation / robustness analysis and its inputs' hash."""
+
+    __tablename__ = "analysis_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    seq: Mapped[int] = mapped_column(Integer, default=0)
+    kind: Mapped[str] = mapped_column(String(24))  # graph / optimize / robustness
+    run_key: Mapped[str] = mapped_column(String(200), index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    evidence_hash: Mapped[str] = mapped_column(String(64))
+    algorithm_version: Mapped[str] = mapped_column(String(64))
+    params_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    result_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    result_hash: Mapped[str] = mapped_column(String(64))
+    previous_id: Mapped[str | None] = mapped_column(ForeignKey("analysis_runs.id"), nullable=True)
+    actor: Mapped[str] = mapped_column(String(120))
+
+
 Index("ix_import_runs_hash", ImportRun.input_sha256, ImportRun.adapter_version, ImportRun.adapter)
 
 APPEND_ONLY_TABLES = {
@@ -337,6 +369,8 @@ APPEND_ONLY_TABLES = {
     "intelligence_deltas",
     "decisions",
     "audit_events",
+    "graph_inputs",
+    "analysis_runs",
 }
 
 

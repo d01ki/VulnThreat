@@ -6,9 +6,32 @@
 
 Public exploitation reports + attacks seen on your own sensors → a clear, explainable decision for every asset.
 
-![Threat Changes](docs/images/home-1440.png)
+![Attack Paths](docs/images/v2-attack-paths-1440.png)
 
 </div>
+
+## New in v2: evidence-grounded attack paths and counterfactual patch triage
+
+No WAF, IDS or SIEM logs. No API keys. No exploit execution.
+
+1. **Attack Paths**: model paths from entry points to crown jewels, built from your topology, findings and structured preconditions. Each path is `supported`, `conditional`, `insufficient_evidence` or `contradicted`, and every edge links to its evidence.
+2. **Remediation Lab**: the action portfolio that breaks the most modelled paths within an effort budget (exact search for small catalogues), compared under the *same* budget with CVSS-, EPSS-, KEV-first, criticality and graph-only rankings.
+3. **Decision Robustness**: what if a claim is retracted, an edge is unknown or an applicability review is wrong? See which recommendation flips, and exactly why.
+
+```powershell
+uv sync
+uv run tiw demo seed --scenario attack-path      # synthetic, offline, fixed clock
+uv run tiw serve --data-dir .tiw-demo            # http://127.0.0.1:8787/attack-paths
+uv run tiw triage optimize --budget 2 --data-dir .tiw-demo
+```
+
+Expected: the graph-aware optimum patches the shared payments-API choke point (weighted paths 17 → 2), while highest-CVSS-first under the same budget leaves 5. Retracting one runbook claim flips the recommendation, and the decision diff names the claim. Walkthrough: [Arsenal demo](docs/ARSENAL_DEMO.md).
+
+Paths are hypotheses over recorded data, not observed attacks. CVSS, EPSS and KEV are not breach probabilities; scenario counts are not confidence scores.
+
+| Remediation Lab | Decision Robustness |
+|---|---|
+| ![Remediation Lab](docs/images/v2-lab-1440.png) | ![Robustness](docs/images/v2-robustness-1440.png) |
 
 ## What it does
 
@@ -41,7 +64,7 @@ Your data persists in the `tiw-data` volume.
 ```powershell
 docker run --rm -p 127.0.0.1:8788:8787 -e TIW_MODE=demo threat-workbench
 ```
-Open http://127.0.0.1:8788.
+Open http://127.0.0.1:8788. This serves the attack-path demo; add `-e TIW_DEMO_SCENARIO=legacy` for the original scenarios A–D.
 </details>
 
 <details>
@@ -61,4 +84,6 @@ uv run tiw serve            # http://127.0.0.1:8787
 
 [Overview](docs/en/overview.md) · [Installation](docs/en/installation.md) · [Usage](docs/en/usage.md) · [Status](docs/IMPLEMENTATION_STATUS.md)
 
-<sub>CLI: `tiw` · License: Apache-2.0 (candidate)</sub>
+v2: [Architecture](docs/ARCHITECTURE_V2.md) · [Data formats](docs/DATA_FORMATS_V2.md) · [Arsenal demo](docs/ARSENAL_DEMO.md) · [Research evaluation](docs/RESEARCH_EVALUATION.md) · [Status](docs/IMPLEMENTATION_STATUS_V2.md) · [Roadmap](docs/ROADMAP_V2.md)
+
+<sub>CLI: `tiw` · License: not yet decided (the repository has no LICENSE file)</sub>

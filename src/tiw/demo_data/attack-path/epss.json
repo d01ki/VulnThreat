@@ -1,0 +1,13 @@
+{
+ "status": "OK",
+ "synthetic": true,
+ "data": [
+  {"cve": "DEMO-VULN-101", "epss": "0.21", "percentile": "0.88", "date": "2026-10-19"},
+  {"cve": "DEMO-VULN-102", "epss": "0.04", "percentile": "0.61", "date": "2026-10-19"},
+  {"cve": "DEMO-VULN-103", "epss": "0.01", "percentile": "0.30", "date": "2026-10-19"},
+  {"cve": "DEMO-VULN-104", "epss": "0.30", "percentile": "0.92", "date": "2026-10-19"},
+  {"cve": "DEMO-VULN-105", "epss": "0.12", "percentile": "0.80", "date": "2026-10-19"},
+  {"cve": "DEMO-VULN-106", "epss": "0.02", "percentile": "0.41", "date": "2026-10-19"},
+  {"cve": "DEMO-VULN-107", "epss": "0.62", "percentile": "0.97", "date": "2026-10-19"}
+ ]
+}

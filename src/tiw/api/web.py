@@ -31,7 +31,10 @@ KIND_HELP = {
     "assets": "Asset CSV — asset_id, name, criticality, internet_exposed, observed_at, expires_at",
     "findings": "Finding CSV — finding_id, asset_id, vulnerability_id, applicability, observed_at (+ rationale, evidence_ref, reviewer, expires_at for not_affected)",
     "observations": "Observation JSONL — one event or sensor_window per line (schema_version 1.0)",
-    "claims": "Reviewed advisory claims JSON (schema_version 1.0)",
+    "claims": "Reviewed advisory claims JSON (schema_version 1.0); also graph evidence (predicates reachability / precondition)",
+    "topology": "Topology JSON — entry points, asset nodes, security objectives and directed edges with evidence (schema_version 1.0)",
+    "exploit_conditions": "Exploit conditions JSON — structured, non-executable preconditions per vulnerability (schema_version 1.0)",
+    "remediations": "Remediation catalog JSON — actions with integer effort, downtime, dependencies and conflicts (schema_version 1.0)",
     "kev": "Saved CISA KEV catalog JSON",
     "epss": "Saved FIRST EPSS API response JSON",
 }
@@ -41,6 +44,9 @@ NOTICES = {
     "fetch_ok": "Download finished and imported. Decisions were recomputed.",
     "fetch_failed": "Download failed. Existing data was kept; see the failure below.",
     "settings_saved": "Settings saved.",
+    "demo_reset_1": "Demo reset to step 1. Every analysis below was recomputed from the synthetic fixtures.",
+    "demo_reset_2": "Demo reset and advanced to step 2 (the SFTP runbook claim is retracted).",
+    "demo_step_2": "Step 2 applied: the SFTP to API runbook claim was retracted. Compare the recommendation below with the previous run.",
 }
 IMPORT_TEMPLATES = {
     "assets": ("assets-template.csv", "text/csv; charset=utf-8", "".join(line + chr(10) for line in [
@@ -338,4 +344,7 @@ def build_router(ws: db.Workspace) -> APIRouter:
             db.set_meta(s, "timezone", timezone_name)
         return RedirectResponse("/settings?notice=settings_saved", status_code=303)
 
+    from tiw.api import web_v2
+
+    web_v2.add_routes(r, ws, render, forbidden)
     return r

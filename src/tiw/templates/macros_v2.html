@@ -1,0 +1,47 @@
+{% macro workflow(active) -%}
+<nav class="workflow" aria-label="Attack-path workflow">
+  {%- for key, href, label in [("attack_paths", "/attack-paths", "1 Attack Paths"), ("evidence", "/attack-paths#paths", "2 Evidence"), ("lab", "/remediation-lab", "3 Remediation Lab"), ("robustness", "/robustness", "4 Decision Robustness")] -%}
+  <a href="{{ href }}" {% if active == key %}aria-current="step"{% endif %}>{{ label }}</a>{% if not loop.last %}<span class="wf-sep" aria-hidden="true">›</span>{% endif %}
+  {%- endfor -%}
+</nav>
+{%- endmacro %}
+
+{% macro pstatus(s) -%}
+{%- set labels = {"supported": "Supported", "conditional": "Conditional", "insufficient_evidence": "Insufficient evidence", "contradicted": "Contradicted", "absent": "Absent"} -%}
+<span class="badge ps-{{ s }}">{{ labels.get(s, s) }}</span>
+{%- endmacro %}
+
+{% macro hstatus(s) -%}
+{%- if s in ("supported", "conditional", "insufficient_evidence", "contradicted") -%}{{ pstatus(s) }}{%- else -%}<span class="badge b-inactive">{{ s }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro fstatus(s) -%}
+<span class="badge fs-{{ s }}">{{ s }}</span>
+{%- endmacro %}
+
+{% macro actions(ids) -%}
+{%- if ids -%}{% for a in ids %}<span class="tag mono">{{ a }}</span>{% if not loop.last %} + {% endif %}{% endfor %}{%- else -%}<span class="muted">no action</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro route(p) -%}
+<span class="route">{% for n in p.nodes %}<span class="mono">{{ n }}</span>{% if not loop.last %}<span class="arrow" aria-hidden="true">→</span><span class="sr-only"> to </span>{% endif %}{% endfor %}</span>
+{%- endmacro %}
+
+{% macro demo_controls(info, csrf, csrf_field) -%}
+{% if info.synthetic and "attack-path" in info.demo_scenarios %}
+<section class="card demo-bar" aria-label="Demo controls">
+  <div><strong>Synthetic attack-path demo.</strong> <span class="secondary small">Reset reproduces the exact same analysis (fixed clock, fixed fixtures). No WAF/IDS/SIEM logs are used.</span></div>
+  <div class="actions">
+    <form method="post" action="/demo/attack-path/reset"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}"><input type="hidden" name="step" value="1"><button class="btn btn-sm" type="submit">Reset demo (step 1)</button></form>
+    <form method="post" action="/demo/attack-path/advance"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf }}"><button class="btn btn-sm btn-primary" type="submit">Step 2: retract the SFTP runbook claim</button></form>
+  </div>
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro assumptions(items) -%}
+<details class="card assumptions">
+  <summary><strong>Model assumptions and limits</strong> <span class="secondary small">({{ items | length }})</span></summary>
+  <ul class="reason-list">{% for a in items %}<li class="small">{{ a }}</li>{% endfor %}</ul>
+</details>
+{%- endmacro %}
