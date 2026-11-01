@@ -24,6 +24,14 @@ from tiw.adapters.common import (
     RowError,
     check_size,
 )
+from tiw.adapters.graph_inputs import (
+    CONDITIONS_ADAPTER_VERSION,
+    REMEDIATIONS_ADAPTER_VERSION,
+    TOPOLOGY_ADAPTER_VERSION,
+    parse_exploit_conditions,
+    parse_remediations,
+    parse_topology,
+)
 from tiw.adapters.feeds import EPSS_ADAPTER_VERSION, KEV_ADAPTER_VERSION, parse_epss, parse_kev
 from tiw.adapters.inventory import (
     ASSETS_ADAPTER_VERSION,
@@ -32,6 +40,7 @@ from tiw.adapters.inventory import (
     parse_findings,
 )
 from tiw.adapters.observations import OBSERVATIONS_ADAPTER_VERSION, parse_observations
+from tiw.domain.vocab import GRAPH_PREDICATES
 from tiw.storage import db
 from tiw.storage.models import (
     ApplicabilityReview,
@@ -42,6 +51,7 @@ from tiw.storage.models import (
     ClaimRelation,
     ClaimReview,
     Finding,
+    GraphInput,
     ImportRun,
     Observation,
     SensorWindow,
@@ -50,7 +60,9 @@ from tiw.storage.models import (
     Vulnerability,
 )
 
-KINDS = ("kev", "epss", "assets", "findings", "observations", "claims")
+KINDS = ("kev", "epss", "assets", "findings", "observations", "claims", "topology", "exploit_conditions", "remediations")
+GRAPH_KINDS = ("topology", "exploit_conditions", "remediations")
+KIND_ALIASES = {"exploit-conditions": "exploit_conditions", "remediation": "remediations", "remediation_catalog": "remediations"}
 
 ADAPTERS: dict[str, tuple[str, Callable[[bytes, ParseContext], ParseResult]]] = {
     "kev": (KEV_ADAPTER_VERSION, parse_kev),
@@ -59,6 +71,9 @@ ADAPTERS: dict[str, tuple[str, Callable[[bytes, ParseContext], ParseResult]]] = 
     "findings": (FINDINGS_ADAPTER_VERSION, parse_findings),
     "observations": (OBSERVATIONS_ADAPTER_VERSION, parse_observations),
     "claims": (CLAIMS_ADAPTER_VERSION, parse_claims),
+    "topology": (TOPOLOGY_ADAPTER_VERSION, parse_topology),
+    "exploit_conditions": (CONDITIONS_ADAPTER_VERSION, parse_exploit_conditions),
+    "remediations": (REMEDIATIONS_ADAPTER_VERSION, parse_remediations),
 }
 
 
@@ -184,6 +199,12 @@ def _new_revision(
     s.add(rev)
     s.flush()
     return rev, True
+
+
+def _iso_default(v: Any) -> Any:
+    if isinstance(v, datetime):
+        return db.utc_iso(v)
+    return str(v)
 
 
 def _canonical_hash(obj: Any) -> str:
@@ -565,7 +586,9 @@ class _Writer:
                 self.duplicates += max(1, len(d["claims"]))
                 continue
             for c in d["claims"]:
-                ensure_vulnerability(self.s, c["subject_id"], m["synthetic"])
+                graph_claim = c["predicate"] in GRAPH_PREDICATES
+                if not graph_claim:
+                    ensure_vulnerability(self.s, c["subject_id"], m["synthetic"])
                 claim = Claim(
                     claim_key=c["claim_key"],
                     revision_id=rev.id,
@@ -586,7 +609,8 @@ class _Writer:
                     self._review(claim, c["reviewer"], "reviewed", c["review_reason"])
                 for rel in c["relations"]:
                     pending_relations.append((claim, rel, di))
-                self.vulns.add(c["subject_id"])
+                if not graph_claim:
+                    self.vulns.add(c["subject_id"])
                 self.accepted += 1
             for r in d["retractions"]:
                 target = self._resolve_key(r["claim_key"], new_claims_by_key)
@@ -594,7 +618,8 @@ class _Writer:
                     self.errors.append(RowError(di, "retractions.claim_key", f"unknown claim_key {r['claim_key'][:60]}"))
                     continue
                 self._review(target, r["reviewer"] or f"source:{src.name}", "retracted", r["reason"])
-                self.vulns.add(target.subject_id)
+                if target.predicate not in GRAPH_PREDICATES:
+                    self.vulns.add(target.subject_id)
                 self.accepted += 1
         for claim, rel, di in pending_relations:
             target = self._resolve_key(rel["to"], new_claims_by_key)
@@ -610,7 +635,8 @@ class _Writer:
                     created_at=db.now(self.s),
                 )
             )
-            self.vulns.add(target.subject_id)
+            if target.predicate not in GRAPH_PREDICATES:
+                self.vulns.add(target.subject_id)
 
     def _resolve_key(self, key: str, local: dict[str, Claim]) -> Claim | None:
         if key in local:
@@ -637,6 +663,93 @@ class _Writer:
         self.s.flush()
 
 
+
+    # ------------------------------------------------------------------ v2 graph inputs
+
+    def _claim_subject(self, key: str) -> tuple[str, str] | None:
+        c = self.s.execute(
+            select(Claim).join(SourceRevision, Claim.revision_id == SourceRevision.id)
+            .where(Claim.claim_key == key).order_by(SourceRevision.seq.desc()).limit(1)
+        ).scalar_one_or_none()
+        return (c.predicate, c.subject_id) if c else None
+
+    def _check_claim_keys(self, keys: list[str], predicate: str, subject: str, line: int | None, fld: str) -> None:
+        for k in keys:
+            found = self._claim_subject(k)
+            if found is None:
+                self.errors.append(RowError(line, fld, f"unknown claim_key {k[:60]} (import the claims first)"))
+            elif found != (predicate, subject):
+                self.errors.append(RowError(line, fld, f"claim {k[:60]} is about {found[1][:60]} ({found[0]}), expected {predicate} of {subject}"))
+
+    def _store_graph_input(self, kind: str, pr: ParseResult, content: dict[str, Any]) -> None:
+        m = pr.meta
+        src = get_or_create_source(self.s, m["source"]["name"], kind, license_note=m["source"].get("license_note"))
+        normalized = json.loads(json.dumps(content, sort_keys=True, default=_iso_default))
+        content_hash = _canonical_hash(normalized)
+        latest = self.s.execute(
+            select(GraphInput).where(GraphInput.kind == kind).order_by(GraphInput.seq.desc()).limit(1)
+        ).scalar_one_or_none()
+        if latest is not None and latest.content_hash == content_hash:
+            self.duplicates += 1
+            return
+        rev, _ = _new_revision(
+            self.s, source=src, external_id=kind, sha=content_hash, raw_path=self.raw_path,
+            parser_version=ADAPTERS[kind][0], synthetic=m["synthetic"], run_id=self.run.id,
+            title=m["source"].get("evidence_ref"),
+        )
+        self.s.add(GraphInput(
+            kind=kind, source_revision_id=rev.id, content_json=normalized, content_hash=content_hash,
+            synthetic=m["synthetic"], created_at=db.now(self.s), seq=next_seq(self.s, GraphInput),
+        ))
+        self.s.flush()
+        self.accepted += 1
+
+    def topology(self, pr: ParseResult) -> None:
+        if not pr.records:
+            return
+        doc = pr.records[0]
+        known_assets = {a for (a,) in self.s.execute(select(Asset.id)).all()}
+        for i, n in enumerate(doc["nodes"], start=1):
+            if n["asset_id"] not in known_assets:
+                self.errors.append(RowError(i, f"nodes[{i - 1}].asset_id", f"unknown asset {n['asset_id'][:60]} (import assets first)"))
+        for i, e in enumerate(doc["edges"], start=1):
+            self._check_claim_keys(e["claim_keys"], "reachability", f"edge:{e['id']}", i, f"edges[{i - 1}].claim_keys")
+        if not self.errors:
+            self._store_graph_input("topology", pr, doc)
+
+    def exploit_conditions(self, pr: ParseResult) -> None:
+        if not pr.records:
+            return
+        doc = pr.records[0]
+        with_findings = {v for (v,) in self.s.execute(select(Finding.vulnerability_id).distinct()).all()}
+        for i, v in enumerate(doc["vulnerabilities"], start=1):
+            if v["vulnerability_id"] not in with_findings:
+                self.errors.append(RowError(i, f"vulnerabilities[{i - 1}].vulnerability_id", f"orphan vulnerability {v['vulnerability_id']}: no finding references it"))
+            for c in v["conditions"]:
+                self._check_claim_keys(c["claim_keys"], "precondition", f"cond:{v['vulnerability_id']}:{c['id']}", i, f"vulnerabilities[{i - 1}].conditions[{c['id']}].claim_keys")
+        if not self.errors:
+            self._store_graph_input("exploit_conditions", pr, doc)
+
+    def remediations(self, pr: ParseResult) -> None:
+        if not pr.records:
+            return
+        doc = pr.records[0]
+        findings = {f for (f,) in self.s.execute(select(Finding.id)).all()}
+        assets = {a for (a,) in self.s.execute(select(Asset.id)).all()}
+        topo = self.s.execute(select(GraphInput).where(GraphInput.kind == "topology").order_by(GraphInput.seq.desc()).limit(1)).scalar_one_or_none()
+        edges = {e["id"] for e in topo.content_json["edges"]} if topo else set()
+        for i, a in enumerate(doc["actions"], start=1):
+            loc = f"actions[{i - 1}]"
+            if a["type"] == "patch_finding" and a["finding_id"] not in findings:
+                self.errors.append(RowError(i, f"{loc}.finding_id", f"unknown finding {str(a['finding_id'])[:60]}"))
+            if a["type"] == "restrict_edge" and a["edge_id"] not in edges:
+                self.errors.append(RowError(i, f"{loc}.edge_id", f"unknown edge {str(a['edge_id'])[:60]} (import topology first)"))
+            if a["type"] in ("disable_service", "isolate_asset") and a["asset_id"] not in assets:
+                self.errors.append(RowError(i, f"{loc}.asset_id", f"unknown asset {str(a['asset_id'])[:60]}"))
+        if not self.errors:
+            self._store_graph_input("remediations", pr, doc)
+
+
 # --------------------------------------------------------------------------- entry point
 
 
@@ -651,6 +764,7 @@ def run_import(
     recompute: bool = True,
 ) -> ImportOutcome:
     """Validate and import one file. Whole-file rollback unless allow_partial is set."""
+    kind = KIND_ALIASES.get(kind, kind)
     if kind not in ADAPTERS:
         raise ValueError(f"unknown import kind {kind!r}; expected one of {', '.join(KINDS)}")
     version, parser = ADAPTERS[kind]

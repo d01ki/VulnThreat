@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{{ m.page_head("Decision Robustness", "Would the recommendation survive if a claim were withdrawn, an edge were unknown or an applicability review were wrong? Canonical data is never modified.", info, show_import=False) }}
+{{ v.workflow("robustness") }}
+{{ v.demo_controls(info, csrf, csrf_field) }}
+
+<section class="card" aria-labelledby="wi-h">
+  <div class="card-head"><div><h2 id="wi-h">What-if</h2><p class="sub">Pick one or more changes; the paired recommendation is recomputed on the fly (nothing is stored).</p></div></div>
+  <form class="filters" method="get" action="/robustness">
+    <input type="hidden" name="budget" value="{{ budget }}"><input type="hidden" name="objective" value="{{ objective }}">
+    <label>Withdraw claim <select name="withdraw"><option value="">—</option>{% for c in claims %}<option value="{{ c }}" {% if withdraw == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+    <label>Edge reachability unknown <select name="unknown_edge"><option value="">—</option>{% for e in edges %}<option value="{{ e }}" {% if unknown_edge == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></label>
+    <label>Finding applicability unknown <select name="unknown_app"><option value="">—</option>{% for a in apps %}<option value="{{ a }}" {% if unknown_app == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></label>
+    <button class="btn btn-sm btn-primary" type="submit">Compare</button>
+    {% if whatif %}<a class="btn btn-sm btn-ghost" href="/robustness?budget={{ budget }}&amp;objective={{ objective }}">Clear</a>{% endif %}
+  </form>
+  {% if whatif %}
+  <div class="two-col" data-x="mt4">
+    <div class="pair"><h3 class="h-sm">As recorded</h3><p class="big">{{ v.actions(base.selected.actions) }}</p><p class="small secondary">{{ objective }} {{ base.selected.objective_value }} · {{ base.paths | selectattr("counted") | list | length }} counted paths</p></div>
+    <div class="pair{{ ' flipped' if diff.portfolio_changed else '' }}"><h3 class="h-sm">What-if</h3><p class="big">{{ v.actions(whatif.selected.actions) }}</p><p class="small secondary">{{ objective }} {{ whatif.selected.objective_value }} · {{ whatif.paths | selectattr("counted") | list | length }} counted paths</p></div>
+  </div>
+  <div class="callout {{ 'warn' if diff.portfolio_changed else 'ok' }}" role="status" data-x="mt4">{{ icon("alert" if diff.portfolio_changed else "check") }}<span><strong>{{ "Recommendation flips." if diff.portfolio_changed else "Recommendation unchanged." }}</strong></span></div>
+  <ul class="reason-list" data-x="mt2">{% for w in diff.why %}<li class="small">{{ w }}</li>{% endfor %}</ul>
+  {% if diff.fact_reasons %}<h3 class="h-sm" data-x="mt4">Evidence behind the changed facts</h3>
+  <ul class="list">{% for f in diff.fact_reasons %}<li class="small"><span class="mono">{{ f.fact_id }}</span> → {{ v.fstatus(f.status) }} <span class="mono muted">{{ f.reasons | join(" ") }}</span>
+    <ul>{% for e in f.evidence %}<li><span class="mono">{{ e.id }}</span> {{ e.polarity }} · {{ "active" if e.active else "inactive: " ~ e.inactive_reason }}</li>{% endfor %}</ul></li>{% endfor %}</ul>{% endif %}
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="sum-h" data-x="mt5">
+  <div class="card-head"><div><h2 id="sum-h">Stability across {{ rb.summary.scenarios }} enumerated scenarios</h2><p class="sub">{{ rb.disclaimer }}</p></div></div>
+  <ul class="list">{% for p in rb.summary.portfolios %}<li>{{ v.actions(p.actions) }} <span class="secondary">selected in <strong class="num">{{ p.selected_in }}/{{ p.of }}</strong> scenarios</span></li>{% endfor %}</ul>
+  {% if rb.uncovered %}<p class="small muted" data-x="mt2">Not covered: {{ rb.uncovered | join("; ") }}</p>{% endif %}
+</section>
+
+<section class="card card-flush" aria-labelledby="sc-h" data-x="mt5">
+  <div class="card-head pad"><div><h2 id="sc-h">Scenarios</h2><p class="sub">Budget {{ budget }} · {{ objective }}. Flipped scenarios list every changed path and the evidence behind it.</p></div></div>
+  <div class="table-wrap"><table class="wide-table">
+    <thead><tr><th scope="col">Scenario</th><th scope="col">Recommendation</th><th scope="col" class="r">Objective</th><th scope="col">Why</th></tr></thead>
+    <tbody>
+    {% for x in rb.scenarios %}
+      <tr{% if not x.same_portfolio %} class="row-flip"{% endif %}>
+        <td><strong>{{ x.scenario.label }}</strong><span class="line2 secondary small">{{ x.scenario.description }}</span></td>
+        <td>{{ v.actions(x.selected) }}{% if not x.same_portfolio %}<span class="line2"><span class="badge u-high">flips</span></span>{% endif %}</td>
+        <td class="r num">{{ x.before_value }} → {{ x.objective_value }}</td>
+        <td class="small">{% if x.flip_reasons %}<ul class="reason-list">{% for f in x.flip_reasons[:6] %}<li>{{ f }}</li>{% endfor %}{% if x.flip_reasons | length > 6 %}<li class="muted">+{{ x.flip_reasons | length - 6 }} more</li>{% endif %}</ul>{% else %}<span class="muted">no path changes</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<div data-x="mt5">{{ v.assumptions(rb.assumptions) }}</div>
+{% endblock %}

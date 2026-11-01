@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% import "macros_v2.html" as v with context %}
+{% block content %}
+{{ m.page_head("Attack Paths", "Model paths from entry points to crown jewels, built from recorded topology, findings and structured preconditions. A path is a hypothesis to check, not an observed attack.", info, show_import=False) }}
+{{ v.workflow("attack_paths") }}
+{{ v.demo_controls(info, csrf, csrf_field) }}
+
+<section class="kpi-row" aria-label="Graph summary">
+  <div class="card kpi"><span class="label">Model paths</span><span class="value num">{{ g.counts.paths }}</span><span class="def">{{ g.counts.counted_paths }} counted by the objective{% if g.truncated %} · <strong>truncated</strong>{% endif %}</span></div>
+  {% for s in statuses %}
+  <div class="card kpi kpi-sm"><span class="label">{{ v.pstatus(s) }}</span><span class="value num">{{ g.counts.by_status.get(s, 0) }}</span><span class="def">{{ {"supported": "all preconditions backed by active reviewed evidence", "conditional": "some precondition unknown or stale", "insufficient_evidence": "asserted without active support", "contradicted": "evidence both supports and refutes"}[s] }}</span></div>
+  {% endfor %}
+</section>
+
+<div class="filters" data-x="mt4">
+  <nav class="segmented" aria-label="Target">
+    <a href="{{ url(target=None) }}" {% if not target %}aria-current="true"{% endif %}>All targets</a>
+    {% for o in g.objectives %}<a href="{{ url(target=o.id) }}" {% if target == o.id %}aria-current="true"{% endif %}>{{ o.label }}</a>{% endfor %}
+  </nav>
+  <nav class="segmented" aria-label="Evidence state">
+    <a href="{{ url(status=None) }}" {% if not status %}aria-current="true"{% endif %}>Any state</a>
+    {% for s in statuses %}<a href="{{ url(status=s) }}" {% if status == s %}aria-current="true"{% endif %}>{{ s | replace("_", " ") }}</a>{% endfor %}
+  </nav>
+</div>
+
+<section class="card" aria-labelledby="graph-h">
+  <div class="card-head"><div><h2 id="graph-h">Attack graph</h2><p class="sub">Directed edges are potential reachability or capability transitions (hover for ports). Click an edge for its evidence; click a path below to highlight it.</p></div>
+    <div class="legend-list small">
+      <span class="legend-item"><span class="lg lg-satisfied"></span>supported edge</span>
+      <span class="legend-item"><span class="lg lg-unknown"></span>unknown / stale</span>
+      <span class="legend-item"><span class="lg lg-unsupported"></span>unsupported</span>
+      <span class="legend-item"><span class="lg lg-disputed"></span>disputed</span>
+      <span class="legend-item"><span class="lg lg-refuted"></span>refuted (blocked)</span>
+    </div>
+  </div>
+  <div class="graph-wrap">
+    <svg class="agraph" viewBox="0 0 {{ lay.width }} {{ lay.height }}" width="{{ lay.width }}" height="{{ lay.height }}" role="img" aria-labelledby="graph-title graph-desc">
+      <title id="graph-title">Attack graph with {{ lay.nodes | length }} nodes and {{ lay.edges | length }} edges</title>
+      <desc id="graph-desc">Each box is an entry point or asset; crown jewels are outlined. The path table below lists the same information as text.</desc>
+      <defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      {% for e in lay.edges %}
+      {% set cls = "g-edge st-" ~ e.status ~ (" k-trust" if e.kind == "trust" else "") ~ (" hl" if e.id in hl_edges else "") ~ (" dim" if (target or status) and e.id not in visible_edges else "") %}
+      <a href="/attack-paths?edge={{ e.id | urlencode }}" aria-label="Edge {{ e.source }} to {{ e.target }}: {{ e.status }}">
+        <path class="{{ cls }}" d="{{ e.d }}" marker-end="url(#arrowhead)"><title>{{ e.id }}: {{ e.source }} → {{ e.target }} ({{ e.kind }}{% if e.ports %} {{ e.ports | join(", ") }}{% endif %}) — {{ e.status }}</title></path>
+      </a>
+      {% endfor %}
+      {% for n in lay.nodes %}
+      <g class="g-node k-{{ n.kind }}{{ ' crown' if n.crown_jewel else '' }}">
+        <rect x="{{ n.x }}" y="{{ n.y }}" width="{{ n.w }}" height="{{ n.h }}" rx="7"></rect>
+        <text class="g-label" x="{{ n.x + 10 }}" y="{{ n.y + 19 }}">{{ n.label }}</text>
+        <text class="g-sub" x="{{ n.x + 10 }}" y="{{ n.y + 35 }}">{{ "crown jewel · " if n.crown_jewel else "" }}{{ n.kind | replace("_", " ") if n.kind != "asset" else (n.criticality or "asset") }}</text>
+      </g>
+      {% endfor %}
+    </svg>
+  </div>
+  {% if g.truncated %}<div class="callout warn" role="note">{{ icon("alert") }}<span>Enumeration was truncated ({{ g.truncation_reasons | join("; ") }}). Counts are lower bounds, not complete.</span></div>{% endif %}
+</section>
+
+{% if sel_edge and edge_fact %}
+<section class="card" aria-labelledby="edge-h" data-x="mt5">
+  <div class="card-head"><div><h2 id="edge-h">Edge <span class="mono">{{ sel_edge }}</span></h2><p class="sub">{{ edge_fact.label }} · declared {{ edge_fact.declared }} · resolved {{ v.fstatus(edge_fact.status) }}</p></div><a class="btn btn-sm btn-ghost" href="{{ url(edge=None) }}">Close</a></div>
+  <ul class="list">{% for e in edge_fact.evidence %}
+    <li class="small"><span class="tag">{{ e.kind }}</span> <strong>{{ e.polarity }}</strong> · {{ e.label }} · {% if e.active %}<span class="badge s-ok">active</span>{% else %}<span class="badge b-inactive">inactive: {{ e.inactive_reason }}</span>{% endif %}{% if e.expires_at %} · valid until {{ e.expires_at | t }}{% endif %}
+      {% if e.quote %}<blockquote class="quote">{{ e.quote }}</blockquote>{% endif %}</li>
+  {% else %}<li class="small secondary">No evidence recorded for this edge.</li>{% endfor %}</ul>
+  <p class="small secondary">Reasons: {{ edge_fact.reasons | join(", ") or "—" }}. On {{ edge_paths | length }} path(s): {% for p in edge_paths %}<a class="mono" href="/attack-paths/{{ p.id }}">{{ p.id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+</section>
+{% endif %}
+
+<section class="card card-flush" aria-labelledby="paths-h" id="paths" data-x="mt5">
+  <div class="card-head pad"><div><h2 id="paths-h">Paths ({{ rows | length }})</h2><p class="sub">Ordered by target, length and route. “Counted” paths enter the remediation objective; excluded paths are listed, never treated as safe.</p></div></div>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Path</th><th scope="col">Target</th><th scope="col">Route</th><th scope="col">State</th><th scope="col">Open questions</th><th scope="col">Objective</th></tr></thead>
+    <tbody>
+    {% for p in rows %}
+      <tr{% if p.id == sel_path %} class="row-hl"{% endif %}>
+        <td><a class="mono" href="/attack-paths/{{ p.id }}">{{ p.id }}</a><span class="line2"><a href="{{ url(path=p.id, edge=None) }}#graph-h">highlight</a></span></td>
+        <td>{{ p.objective_label }}<span class="line2 secondary">weight {{ p.weight }}</span></td>
+        <td>{{ v.route(p) }}</td>
+        <td>{{ v.pstatus(p.status) }}</td>
+        <td class="small">{% if p.unknown_facts %}{% for f in p.unknown_facts %}<span class="mono">{{ f }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}{% else %}<span class="muted">none</span>{% endif %}</td>
+        <td>{% if p.counted %}<span class="badge s-ok">counted</span>{% else %}<span class="badge b-inactive">excluded</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}{{ m.empty("No paths match", "Change the target or evidence-state filter.", url(target=None, status=None), "Clear filters") }}{% endif %}
+</section>
+
+<div class="two-col" data-x="mt5">
+  <section class="card" aria-labelledby="hyp-h">
+    <div class="card-head"><div><h2 id="hyp-h">Hypotheses (AI offline)</h2><p class="sub">{{ g.hypothesis_generator.name }} · provider: {{ g.hypothesis_generator.provider }}. Candidates are verified against recorded facts and never change the graph.</p></div></div>
+    <ul class="list">{% for h in g.hypotheses %}
+      <li class="small"><span class="mono">{{ h.hypothesis.hypothesis_id }}</span> {{ v.hstatus(h.verification.status) }} <span class="mono">{{ h.hypothesis.source_asset_id }}</span> → <span class="mono">{{ h.hypothesis.target_asset_id }}</span> {% if h.hypothesis.candidate_vulnerability_id %}via <span class="mono">{{ h.hypothesis.candidate_vulnerability_id }}</span>{% else %}via trust relation{% endif %}</li>
+    {% endfor %}</ul>
+  </section>
+  <section class="card" aria-labelledby="blk-h">
+    <div class="card-head"><div><h2 id="blk-h">Blocked hops</h2><p class="sub">Candidate transitions removed because active evidence refutes a required fact.</p></div></div>
+    {% if g.blocked %}<ul class="list">{% for b in g.blocked %}<li class="small"><span class="mono">{{ b.edge_id }}</span> {{ b.via or "" }} — {{ b.reason }} (<span class="mono">{{ b.fact_id }}</span>)</li>{% endfor %}</ul>
+    {% else %}<p class="secondary small">None. No required fact is refuted by active evidence.</p>{% endif %}
+    <p class="small secondary" data-x="mt4">Evidence snapshot <span class="mono">{{ g.evidence_hash[:16] }}</span> · {{ g.algorithm_version }} · clock {{ g.clock }}{% if latest %} · last recorded run <a href="/analysis-runs/{{ latest.id }}">{{ latest.id | short }}</a>{% endif %}</p>
+  </section>
+</div>
+<div data-x="mt5">{{ v.assumptions(g.assumptions) }}</div>
+{% endblock %}

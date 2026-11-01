@@ -21,6 +21,8 @@ from tiw.adapters.common import (
 )
 from tiw.domain.vocab import (
     INITIAL_REVIEW_STATES,
+    GRAPH_PREDICATES,
+    GRAPH_SUBJECT_RE,
     ORIGINS,
     PREDICATES,
     RELATION_KINDS,
@@ -88,12 +90,19 @@ def parse_claims(data: bytes, ctx: ParseContext) -> ParseResult:
                 result.error(di + 1, f"{cloc}.claim_key", f"duplicate claim_key {key[:60]}")
                 continue
             subject = str(c.get("subject_id") or "")
-            if not is_valid_vuln_id(subject, synthetic=synthetic):
-                result.error(di + 1, f"{cloc}.subject_id", f"invalid identifier {subject[:40]!r}")
-                continue
             predicate = c.get("predicate")
-            if predicate not in PREDICATES:
-                result.error(di + 1, f"{cloc}.predicate", f"must be one of {', '.join(PREDICATES)}")
+            if predicate not in PREDICATES and predicate not in GRAPH_PREDICATES:
+                result.error(di + 1, f"{cloc}.predicate", f"must be one of {', '.join(PREDICATES + GRAPH_PREDICATES)}")
+                continue
+            if predicate in GRAPH_PREDICATES:
+                if not GRAPH_SUBJECT_RE.match(subject):
+                    result.error(di + 1, f"{cloc}.subject_id", "graph claims need subject edge:<edge id> or cond:<vulnerability>:<condition id>")
+                    continue
+                if not isinstance(c.get("value"), bool):
+                    result.error(di + 1, f"{cloc}.value", f"{predicate} value must be true or false")
+                    continue
+            elif not is_valid_vuln_id(subject, synthetic=synthetic):
+                result.error(di + 1, f"{cloc}.subject_id", f"invalid identifier {subject[:40]!r}")
                 continue
             origin = c.get("origin")
             if origin not in ORIGINS or origin in ("kev", "epss"):

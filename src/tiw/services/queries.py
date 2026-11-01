@@ -29,6 +29,7 @@ from tiw.storage.models import (
     ClaimReview,
     Decision,
     Finding,
+    GraphInput,
     ImportRun,
     IntelligenceDelta,
     InvestigationTask,
@@ -50,6 +51,9 @@ ADAPTER_SOURCE_KIND = {
     "assets": "asset_inventory",
     "findings": "scanner",
     "claims": "advisory",
+    "topology": "topology",
+    "exploit_conditions": "exploit_conditions",
+    "remediations": "remediations",
 }
 RULE_TITLES = {
     1: "Rule 1: Reviewed compromise on asset",
@@ -206,6 +210,11 @@ def workspace_info(s: Session) -> dict[str, Any]:
         "brand_name": db.get_meta(s, "brand_name") or db.DEFAULT_BRAND,
         "has_data": has_data,
         "last_update": s.execute(select(func.max(ImportRun.completed_at))).scalar_one(),
+        # v2: telemetry is optional; sensor widgets are labelled/hidden when none exists
+        "has_telemetry": s.execute(select(func.count(Observation.id))).scalar_one() > 0
+        or s.execute(select(func.count(SensorWindow.id))).scalar_one() > 0,
+        "has_graph": s.execute(select(func.count(GraphInput.id)).where(GraphInput.kind == "topology")).scalar_one() > 0,
+        "demo_scenarios": list(db.get_meta_json(s, "demo_scenarios", [])),  # type: ignore[arg-type]
     }
 
 

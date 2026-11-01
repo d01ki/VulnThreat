@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block content %}
+{{ m.page_head("Analysis Runs", "Every recorded graph, optimisation and robustness analysis with the hash of the evidence it used. Runs are append-only.", info, show_import=False) }}
+<section class="card card-flush">
+  {% if items %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Run</th><th scope="col">Kind</th><th scope="col">Parameters</th><th scope="col">Evidence hash</th><th scope="col">Recorded</th><th scope="col">Export</th></tr></thead>
+    <tbody>{% for r in items %}
+      <tr><td><a class="mono" href="/analysis-runs/{{ r.id }}">{{ r.id | short }}</a><span class="line2 muted">#{{ r.seq }}{% if r.previous_id %} · has previous{% endif %}</span></td>
+        <td>{{ r.kind }}</td><td class="mono small">{{ r.run_key }}</td><td class="mono small">{{ r.evidence_hash[:12] }}</td>
+        <td class="nowrap">{{ r.created_at | t }}<span class="line2 muted">{{ r.actor }}</span></td>
+        <td class="nowrap small"><a href="/analysis-runs/{{ r.id }}/export?format=markdown">MD</a> · <a href="/analysis-runs/{{ r.id }}/export?format=json">JSON</a> · <a href="/analysis-runs/{{ r.id }}/export?format=normalized">normalized</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}{{ m.empty("No analysis runs yet", "Record one from the Remediation Lab or run `tiw triage optimize --budget 2`.", "/remediation-lab", "Open Remediation Lab") }}{% endif %}
+</section>
+{% endblock %}

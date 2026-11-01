@@ -11,7 +11,7 @@ from tiw.adapters.common import MAX_FILE_BYTES, InputMalformed, InputTooLarge
 from tiw.api.security import check_token
 from tiw.services import queries
 from tiw.services.export import export_threat
-from tiw.services.ingest import KINDS, run_import
+from tiw.services.ingest import KIND_ALIASES, KINDS, run_import
 from tiw.services.pipeline import recompute, resolve_task
 from tiw.services.review import ReviewError, add_review
 from tiw.storage import db
@@ -111,6 +111,7 @@ def build_router(ws: db.Workspace) -> APIRouter:
 
     @r.post("/imports/{kind}", response_model=ImportResult, status_code=201, responses={413: {"model": ErrorEnvelope}})
     async def post_import(kind: str, file: UploadFile = File(...), allow_partial: bool = Query(False), dry_run: bool = Query(False)) -> Any:
+        kind = KIND_ALIASES.get(kind, kind)
         if kind not in KINDS:
             raise ApiError(404, "unknown_kind", f"kind must be one of {', '.join(KINDS)}")
         data = await file.read(MAX_FILE_BYTES + 1)
@@ -298,4 +299,7 @@ def build_router(ws: db.Workspace) -> APIRouter:
         with db.session_scope(ws) as s:
             return {"sources": [{k: _iso(v) for k, v in h.items()} for h in queries.source_health(s)], "now": _iso(db.now(s))}
 
+    from tiw.api import rest_v2
+
+    rest_v2.add_routes(r, ws, ApiError)
     return r

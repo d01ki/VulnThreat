@@ -1,0 +1,17 @@
+{
+ "schema_version": "1.0",
+ "synthetic": true,
+ "source": {"name": "Synthetic network review board", "kind": "advisory", "license_note": "Authored for the demo"},
+ "documents": [
+  {
+   "external_id": "netreview/partner-integration-runbook-correction",
+   "title": "Correction: runbook described a decommissioned integration (synthetic)",
+   "published_at": "2026-10-21T08:00:00Z",
+   "text": "The integration team retracts the runbook statement; the forwarding job was decommissioned. Not yet verified on the firewall.",
+   "claims": [],
+   "retractions": [
+    {"claim_key": "g-sftp-api", "reason": "Integration team retracted: forwarding job decommissioned (not yet verified)", "reviewer": "demo-analyst"}
+   ]
+  }
+ ]
+}

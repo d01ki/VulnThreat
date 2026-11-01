@@ -18,6 +18,7 @@ class Step:
     clock: str
     title: str
     imports: tuple[tuple[str, str], ...]  # (kind, file name)
+    analyze: bool = False  # record v2 analysis runs after this step (attack-path scenario)
 
 
 @dataclass(frozen=True)
@@ -82,8 +83,23 @@ SCENARIOS: dict[str, Scenario] = {
                  (("kev", "kev-broken.json"),)),
         ),
     ),
+    "attack-path": Scenario(
+        "attack-path",
+        "AP",
+        "Evidence-grounded attack paths and counterfactual patch triage (no WAF/IDS logs)",
+        (
+            Step(1, "2026-10-20T09:00:00Z", "Assets, findings, saved KEV/EPSS, reviewed graph claims, topology, preconditions and remediation catalog",
+                 (("assets", "assets.csv"), ("findings", "findings.csv"), ("epss", "epss.json"), ("kev", "kev-2026-10-19.json"),
+                  ("claims", "claims-1.json"), ("topology", "topology.json"), ("exploit_conditions", "exploit_conditions.json"),
+                  ("remediations", "remediations.json")), analyze=True),
+            Step(2, "2026-10-21T09:00:00Z", "The partner-integration runbook claim (SFTP → API) is retracted",
+                 (("claims", "claims-2.json"),), analyze=True),
+        ),
+    ),
 }
-ALIASES = {"a": "escalation", "b": "amplification", "c": "expiry", "d": "correction"}
+LEGACY = ("escalation", "amplification", "expiry", "correction")
+ALIASES = {"a": "escalation", "b": "amplification", "c": "expiry", "d": "correction", "ap": "attack-path", "attack_path": "attack-path", "v2": "attack-path"}
+DEMO_BUDGET = 2
 
 
 class DemoError(Exception):
@@ -92,7 +108,7 @@ class DemoError(Exception):
 
 def resolve(names: str) -> list[str]:
     if names == "all":
-        return list(SCENARIOS)
+        return list(LEGACY)
     out = []
     for n in names.split(","):
         n = ALIASES.get(n.strip().lower(), n.strip().lower())
@@ -140,6 +156,8 @@ def _apply(ws: db.Workspace, scenario: str, upto: int) -> list[dict[str, Any]]:
             out = run_import(ws, kind, fixture_bytes(scenario, name), actor="demo", recompute=False)
             results.append({"file": name, **{k: out.as_dict()[k] for k in ("kind", "status", "accepted", "duplicates", "rejected", "errors")}})
         summary = recompute(ws, actor="demo", trigger=f"demo:{scenario}:{step.number}")
+        if step.analyze:
+            summary = {**summary, "analysis_runs": record_demo_analyses(ws)}
         with db.session_scope(ws) as s:
             state = dict(db.get_meta_json(s, "demo_applied", {}))  # type: ignore[arg-type]
             state[scenario] = step.number
@@ -148,11 +166,44 @@ def _apply(ws: db.Workspace, scenario: str, upto: int) -> list[dict[str, Any]]:
     return log
 
 
+def record_demo_analyses(ws: db.Workspace) -> list[dict[str, Any]]:
+    """Record the graph, budget-2 optimisation and robustness runs (append-only, idempotent)."""
+    from tiw.services import triage
+
+    out = []
+    with db.session_scope(ws) as s:
+        payloads = [
+            ("graph", "graph", triage.analyze_graph(s)),
+            ("optimize", None, triage.optimize_analysis(s, budget=DEMO_BUDGET)),
+            ("robustness", None, triage.robustness_analysis(s, budget=DEMO_BUDGET)),
+        ]
+    for kind, key, payload in payloads:
+        rk = key or triage.run_key(kind, payload["result"]["params"])
+        run, created, _diff = triage.record(ws, kind, rk, payload, actor="demo")
+        out.append({"kind": kind, "run_id": run.id, "created": created})
+    return out
+
+
+def _family_check(ws: db.Workspace, names: list[str]) -> None:
+    if not ws.exists():
+        return
+    with db.session_scope(ws) as s:
+        seeded = set(db.get_meta_json(s, "demo_scenarios", []))  # type: ignore[arg-type]
+    new_ap, new_legacy = "attack-path" in names, any(n in LEGACY for n in names)
+    has_ap, has_legacy = "attack-path" in seeded, bool(seeded & set(LEGACY))
+    if (new_ap and has_legacy) or (new_legacy and has_ap) or (new_ap and new_legacy):
+        raise DemoError(
+            "the attack-path scenario uses its own synthetic KEV snapshot and cannot share a workspace with scenarios A-D; "
+            "run `tiw demo reset --yes` first or pass a different --data-dir"
+        )
+
+
 def seed(ws: db.Workspace, scenarios: str = "all") -> list[dict[str, Any]]:
     """Create (or reuse) a synthetic workspace and apply step 1. Never deletes anything."""
     _guard(ws)
-    db.init_workspace(ws, synthetic=True)
     names = resolve(scenarios)
+    _family_check(ws, names)
+    db.init_workspace(ws, synthetic=True)
     with db.session_scope(ws) as s:
         seeded = set(db.get_meta_json(s, "demo_scenarios", []))  # type: ignore[arg-type]
         db.set_meta(s, "demo_scenarios", json.dumps(sorted(seeded | set(names))))
@@ -181,6 +232,41 @@ def advance(ws: db.Workspace, step: int, scenarios: str | None = None) -> list[d
     for _clock, _letter, n, number in pending:
         log += _apply(ws, n, number)
     return log
+
+
+def reset_workspace(ws: db.Workspace) -> None:
+    """Delete a synthetic demo workspace's data (never a live one). Keeps the API token file."""
+    import shutil
+
+    if not ws.exists():
+        return
+    with db.session_scope(ws) as s:
+        if not db.is_synthetic_workspace(s):
+            raise DemoError("refusing: this is not a synthetic workspace")
+    token = ws.token_path.read_text(encoding="utf-8") if ws.token_path.exists() else None
+    db.dispose_engine(ws)
+    for name in ("tiw.db", "tiw.db-wal", "tiw.db-shm"):
+        (ws.data_dir / name).unlink(missing_ok=True)
+    for d in (ws.objects_dir, ws.exports_dir, ws.staging_dir):
+        shutil.rmtree(d, ignore_errors=True)
+    if token is not None:
+        ws.token_path.write_text(token, encoding="utf-8")
+
+
+def reseed(ws: db.Workspace, scenario: str = "attack-path", step: int = 1) -> list[dict[str, Any]]:
+    """One-click demo reset: delete synthetic data, seed again and advance to ``step``."""
+    reset_workspace(ws)
+    log = seed(ws, scenario)
+    if step > 1:
+        log += advance(ws, step, scenario)
+    return log
+
+
+def seeded(ws: db.Workspace) -> list[str]:
+    if not ws.exists():
+        return []
+    with db.session_scope(ws) as s:
+        return list(db.get_meta_json(s, "demo_scenarios", []))  # type: ignore[arg-type]
 
 
 def status(ws: db.Workspace) -> list[dict[str, Any]]:

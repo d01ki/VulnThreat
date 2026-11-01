@@ -10,12 +10,15 @@ from typing import Optional
 import typer
 
 from tiw.adapters.common import InputMalformed, InputTooLarge
+from tiw.cli import v2
 from tiw.services import demo as demo_svc
 from tiw.storage import db
 
 app = typer.Typer(help="threat-intel-workbench: evidence-driven threat intelligence for patch decisions.", no_args_is_help=True)
-demo_app = typer.Typer(help="Offline synthetic demo scenarios A–D.", no_args_is_help=True)
+demo_app = typer.Typer(help="Offline synthetic demo scenarios (A-D and attack-path).", no_args_is_help=True)
 app.add_typer(demo_app, name="demo")
+app.add_typer(v2.graph_app, name="graph")
+app.add_typer(v2.triage_app, name="triage")
 
 DataDir = typer.Option(None, "--data-dir", help="Workspace directory (default: $TIW_DATA_DIR or ./.tiw)")
 DemoDir = typer.Option(".tiw-demo", "--data-dir", help="Demo workspace directory (kept separate from real data)")
@@ -57,7 +60,7 @@ def init(
 
 @app.command("import")
 def import_cmd(
-    kind: str = typer.Argument(..., help="kev | epss | assets | findings | observations | claims"),
+    kind: str = typer.Argument(..., help="kev | epss | assets | findings | observations | claims | topology | exploit-conditions | remediations"),
     path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
     data_dir: Optional[Path] = DataDir,
     allow_partial: bool = typer.Option(False, "--allow-partial", help="Accept valid rows even if some rows fail"),
@@ -154,18 +157,27 @@ def serve(
 
 @app.command()
 def export(
-    threat: str = typer.Option(..., "--threat", help="Vulnerability ID, e.g. DEMO-VULN-001"),
+    threat: Optional[str] = typer.Option(None, "--threat", help="Vulnerability ID, e.g. DEMO-VULN-001"),
+    analysis_run: Optional[str] = typer.Option(None, "--analysis-run", help="Run ID from `tiw triage runs`, or latest-optimize / latest-robustness / latest-graph"),
     fmt: str = typer.Option("markdown", "--format", help="json | markdown"),
+    normalized: bool = typer.Option(False, "--normalized", help="JSON only: deterministic result without run ids or timestamps"),
     stdout: bool = typer.Option(False, "--stdout", help="Also print the export"),
     data_dir: Optional[Path] = DataDir,
 ) -> None:
-    """Write a local JSON/Markdown report for one threat."""
+    """Write a local JSON/Markdown report for one threat or one recorded analysis run."""
+    from tiw.services.analysis_export import export_analysis_run
     from tiw.services.export import export_threat
 
     ws = _ws(data_dir)
     _require(ws)
+    if bool(threat) == bool(analysis_run):
+        typer.secho("pass exactly one of --threat or --analysis-run", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
     try:
-        path, content = export_threat(ws, threat, fmt)
+        if analysis_run:
+            path, content = export_analysis_run(ws, v2.resolve_run(ws, analysis_run), fmt, normalized=normalized)
+        else:
+            path, content = export_threat(ws, threat or "", fmt)
     except (LookupError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from None
@@ -209,11 +221,13 @@ def _print_demo_log(log: list[dict]) -> None:
             typer.echo(f"     {i['kind']:<12} {i['file']:<24} {i['status']} (accepted {i['accepted']}, duplicates {i['duplicates']}){extra}")
         r = e["recompute"]
         typer.echo(f"     → new assessments {r['assessments']}, deltas {r['deltas']}, decisions {r['decisions']}")
+        for a in r.get("analysis_runs", []):
+            typer.echo(f"     → analysis run {a['kind']:<10} {a['run_id']} ({'recorded' if a['created'] else 'unchanged'})")
 
 
 @demo_app.command("seed")
 def demo_seed(
-    scenario: str = typer.Option("all", "--scenario", help="escalation (A) | amplification (B) | expiry (C) | correction (D) | all"),
+    scenario: str = typer.Option("all", "--scenario", help="escalation (A) | amplification (B) | expiry (C) | correction (D) | all (A-D) | attack-path"),
     data_dir: Path = DemoDir,
 ) -> None:
     """Create a synthetic demo workspace and apply step 1."""

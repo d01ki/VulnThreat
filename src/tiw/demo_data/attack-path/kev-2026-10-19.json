@@ -1,0 +1,20 @@
+{
+ "title": "Synthetic KEV-format catalog (attack-path demo)",
+ "catalogVersion": "2026.10.19",
+ "dateReleased": "2026-10-19T00:00:00Z",
+ "count": 1,
+ "synthetic": true,
+ "vulnerabilities": [
+  {
+   "cveID": "DEMO-VULN-107",
+   "vendorProject": "DemoVendor",
+   "product": "Demo Partner SFTP",
+   "vulnerabilityName": "Demo SFTP pre-auth flaw (synthetic)",
+   "dateAdded": "2026-10-19",
+   "shortDescription": "Synthetic entry used by the attack-path demo. <b>markup is escaped</b>",
+   "requiredAction": "Apply vendor update (synthetic).",
+   "dueDate": "2026-11-09",
+   "knownRansomwareCampaignUse": "Unknown"
+  }
+ ]
+}

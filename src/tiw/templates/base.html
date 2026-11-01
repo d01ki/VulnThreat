@@ -9,13 +9,20 @@
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
-{% set nav_items = [
+{% set v1_items = [
   ("home", "/", "changes", "Threat Changes"),
   ("threats", "/threats", "threats", "Threats"),
-  ("observations", "/observations", "observations", "Observations"),
+  ("observations", "/observations", "observations", "Observations" if info.has_telemetry else "Sensor events (optional)"),
   ("assets", "/assets", "assets", "Affected Assets"),
   ("investigations", "/investigations", "queue", "Investigation Queue"),
 ] %}
+{% set v2_items = [
+  ("attack_paths", "/attack-paths", "graph", "Attack Paths"),
+  ("lab", "/remediation-lab", "lab", "Remediation Lab"),
+  ("robustness", "/robustness", "scale", "Robustness"),
+  ("runs", "/analysis-runs", "history", "Analysis Runs"),
+] %}
+{% set nav_items = (v2_items + v1_items) if info.has_graph else (v1_items + v2_items) %}
 <header class="topbar">
   <a class="brand" href="/"><span class="brand-mark">{{ icon("logo", "icon icon-sm") }}</span><span class="brand-name">{{ info.brand_name }}</span></a>
   <button class="btn btn-ghost" id="nav-toggle" aria-controls="sidebar" aria-expanded="false">{{ icon("menu") }}<span>Menu</span></button>

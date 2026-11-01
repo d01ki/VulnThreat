@@ -1,0 +1,8 @@
+asset_id,name,criticality,internet_exposed,observed_at,expires_at,owner,synthetic
+ap-web-01,public-web-portal (synthetic),high,true,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,web-team,true
+ap-vpn-01,remote-access-vpn (synthetic),high,true,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,net-team,true
+ap-sftp-01,partner-sftp (synthetic),normal,true,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,integration-team,true
+ap-api-01,internal-payments-api (synthetic),high,false,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,payments-team,true
+ap-admin-01,admin-console (synthetic),normal,false,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,corp-it,true
+ap-finance-db,finance-database (synthetic),critical,false,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,finance-it,true
+ap-hr-db,hr-database (synthetic),critical,false,2026-10-15T00:00:00Z,2026-12-31T00:00:00Z,hr-it,true
