@@ -12,6 +12,7 @@ from tiw.storage import db
 
 graph_app = typer.Typer(help="Evidence-grounded attack graph (model paths, not observed attacks).", no_args_is_help=True)
 triage_app = typer.Typer(help="Counterfactual patch triage and decision robustness.", no_args_is_help=True)
+draft_app = typer.Typer(help="Generate editable draft inputs from imported assets and findings.", no_args_is_help=True)
 DataDir = typer.Option(None, "--data-dir", help="Workspace directory (default: $TIW_DATA_DIR or ./.tiw)")
 
 
@@ -246,3 +247,62 @@ def triage_runs(data_dir: Optional[Path] = DataDir, limit: int = typer.Option(20
     with db.session_scope(ws) as s:
         for r in triage.latest_runs(s, limit):
             typer.echo(f"{r.id}  #{r.seq:<3} {r.kind:<10} {r.run_key:<44} {db.utc_iso(r.created_at)}  evidence {r.evidence_hash[:12]}")
+
+
+def _draft(kind: str, out: Optional[Path], do_import: bool, data_dir: Optional[Path]) -> None:
+    from tiw.services import drafts
+
+    ws = _ws(data_dir)
+    kinds = drafts.DRAFT_KINDS if kind == "all" else (kind,)
+    try:
+        if do_import:
+            for r in drafts.draft_and_import(ws, kinds, actor="cli"):
+                typer.echo(f"{r['kind']}: {r['status']} accepted={r['accepted']} duplicates={r['duplicates']}")
+                for e in r["errors"][:10]:
+                    typer.echo(f"  {e['field']}: {e['reason']}")
+                if r["status"] == "failed":
+                    raise typer.Exit(1)
+            typer.echo("Drafts are unreviewed: service ports are 'any' (an unknown fact on every hop) and efforts are placeholders. "
+                       "Export them with --out, edit, and re-import to refine.")
+            return
+        for k in kinds:
+            content = drafts.draft_bytes(ws, k)
+            if out is None:
+                typer.echo(content.decode())
+            else:
+                target = out if len(kinds) == 1 else out.with_name(f"{out.stem}-{k}{out.suffix or '.json'}")
+                target.write_bytes(content)
+                typer.echo(f"Wrote {target}")
+    except drafts.DraftError as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from None
+
+
+@draft_app.command("exploit-conditions")
+def draft_conditions(
+    out: Optional[Path] = typer.Option(None, "--out", dir_okay=False, help="Write the draft here instead of stdout"),
+    do_import: bool = typer.Option(False, "--import", help="Import the draft directly"),
+    data_dir: Optional[Path] = DataDir,
+) -> None:
+    """One entry per vulnerability with findings (ports 'any', unreviewed). Existing entries are kept."""
+    _draft("exploit_conditions", out, do_import, data_dir)
+
+
+@draft_app.command("remediations")
+def draft_remediations(
+    out: Optional[Path] = typer.Option(None, "--out", dir_okay=False),
+    do_import: bool = typer.Option(False, "--import"),
+    data_dir: Optional[Path] = DataDir,
+) -> None:
+    """One patch action per finding (effort 1 placeholder, unverified). Existing actions are kept."""
+    _draft("remediations", out, do_import, data_dir)
+
+
+@draft_app.command("all")
+def draft_all(
+    out: Optional[Path] = typer.Option(None, "--out", dir_okay=False, help="Base file name; '-<kind>' is appended"),
+    do_import: bool = typer.Option(False, "--import"),
+    data_dir: Optional[Path] = DataDir,
+) -> None:
+    """Exploit conditions and remediations drafts together."""
+    _draft("all", out, do_import, data_dir)

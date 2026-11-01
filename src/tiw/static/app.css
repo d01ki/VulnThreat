@@ -485,3 +485,5 @@ tr.row-flip td { background: #251e10; }
 @media (max-width: 1279px) { .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 767px) { .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .wide-table { min-width: 720px; }
+.actions-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.actions-row form { margin: 0; }

@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tiw.domain.attack_graph import (
+    ANY_PORT,
     GRAPH_ALGORITHM_VERSION,
     Edge,
     EvidenceItem,
@@ -24,6 +25,7 @@ from tiw.domain.attack_graph import (
     Node,
     Objective,
     canonical_hash,
+    matching_ports,
 )
 from tiw.domain.claims import ClaimView, mark_inactive
 from tiw.domain.remediation import Action, ActionSignals
@@ -191,6 +193,9 @@ def load(s: Session, *, limits: Limits | None = None, at: datetime | None = None
                 ))
             cev += _claim_evidence(cd["claim_keys"], claims)
             cfacts.append(Fact(f"cond:{f.vulnerability_id}:{cd['id']}", cd["kind"], cd.get("description") or cd["id"], cd["status"], tuple(cev)))
+        if ANY_PORT in v["service_ports"]:
+            cfacts.append(Fact(f"cond:{f.vulnerability_id}:service-port", "network_service",
+                               "service port not recorded (draft): any open port on the edge is assumed", "unknown", ()))
         exploits.append(Exploit(f.id, f.asset_id, f.vulnerability_id, tuple(v["service_ports"]), v["requires_capability"], v["grants_capability"],
                                 app, tuple(cfacts), v.get("cvss"), v.get("title") or ""))
         epss = _epss(s, f.vulnerability_id)
@@ -278,7 +283,7 @@ def _signals(a: Action, model: GraphModel, vulns: dict[str, dict[str, Any]], ass
     elif a.type in ("disable_service", "isolate_asset") and a.asset_id:
         asset_ids = [a.asset_id]
         vids = sorted({x.vulnerability_id for x in model.exploits if x.asset_id == a.asset_id
-                       and (a.type == "isolate_asset" or set(x.service_ports) & set(a.ports))})
+                       and (a.type == "isolate_asset" or matching_ports(x.service_ports, a.ports))})
     elif a.type == "restrict_edge" and a.edge_id:
         e = next((e for e in model.edges if e.id == a.edge_id), None)
         if e:

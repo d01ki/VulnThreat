@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
+from sqlalchemy import func, select
 
 from tiw.adapters.common import MAX_FILE_BYTES, InputMalformed, InputTooLarge
 from tiw.api import charts
@@ -25,6 +27,7 @@ from tiw.services.ingest import KINDS, run_import
 from tiw.services.pipeline import resolve_task
 from tiw.services.review import ReviewError, add_review
 from tiw.storage import db
+from tiw.storage.models import Finding
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 KIND_HELP = {
@@ -46,6 +49,7 @@ NOTICES = {
     "settings_saved": "Settings saved.",
     "demo_reset_1": "Demo reset to step 1. Every analysis below was recomputed from the synthetic fixtures.",
     "demo_reset_2": "Demo reset and advanced to step 2 (the SFTP runbook claim is retracted).",
+    "drafts_imported": "Drafts imported from your findings. They are unreviewed: service ports are 'any' and efforts are placeholders, so paths stay conditional until you refine them.",
     "demo_step_2": "Step 2 applied: the SFTP to API runbook claim was retracted. Compare the recommendation below with the previous run.",
 }
 IMPORT_TEMPLATES = {
@@ -64,6 +68,48 @@ IMPORT_TEMPLATES = {
         '{"schema_version":"1.0","sensor_id":"ids-1","external_event_id":"alert-1001","observed_at":"2026-11-02T10:00:00Z","asset_id":"web-01","vulnerability_id":"CVE-2021-44228","event_type":"exploit_attempt","mapping_status":"reviewer_confirmed","evidence":{"rule_id":"sid-1000001"}}',
     ])),
 }
+_TOPOLOGY_TEMPLATE = {
+    "schema_version": "1.0",
+    "description": "Template. Entry points, asset nodes (imported asset ids), crown jewels and directed edges with their evidence.",
+    "source": {"name": "firewall export 2026-11-01", "evidence_ref": "fw-export-2026-11-01"},
+    "observed_at": "2026-11-01T00:00:00Z",
+    "entry_points": [{"id": "internet", "label": "Internet", "grants": "network_access"}],
+    "nodes": [{"asset_id": "web-01", "zone": "dmz"}, {"asset_id": "hr-01", "zone": "internal"}],
+    "objectives": [{"id": "OBJ-hr", "asset_id": "hr-01", "label": "HR records", "weight": 3}],
+    "edges": [
+        {"id": "e-inet-web", "source": "internet", "target": "web-01", "kind": "network", "ports": ["tcp/443"],
+         "reachability": "allowed", "review_state": "reviewed", "reviewer": "alice", "evidence_ref": "fw-export rule 10",
+         "valid_until": "2026-12-31T00:00:00Z"},
+        {"id": "e-web-hr", "source": "web-01", "target": "hr-01", "kind": "network", "ports": ["tcp/8080"],
+         "reachability": "unknown", "review_state": "reviewed", "reviewer": "alice",
+         "evidence_ref": "internal segment not covered by the export (unknown, not blocked)"},
+    ],
+}
+_CONDITIONS_TEMPLATE = {
+    "schema_version": "1.0",
+    "description": "Template. Use service_ports ['any'] when the port is not known yet (paths then stay conditional).",
+    "source": {"name": "advisory digest"},
+    "vulnerabilities": [
+        {"vulnerability_id": "CVE-2021-44228", "title": "Log4Shell", "service_ports": ["tcp/443", "tcp/8080"],
+         "requires_capability": "network_access", "grants_capability": "code_execution",
+         "cvss": {"version": "3.1", "base_score": 10.0, "source": "NVD"},
+         "citation": "vendor advisory section 2", "review_state": "reviewed", "reviewer": "alice",
+         "conditions": [{"id": "lookup", "kind": "configuration", "status": "unknown", "description": "JNDI lookups enabled"}]},
+    ],
+}
+_REMEDIATIONS_TEMPLATE = {
+    "schema_version": "1.0",
+    "cost_unit": "engineer-days",
+    "source": {"name": "change board"},
+    "actions": [
+        {"id": "A-patch-web", "type": "patch_finding", "finding_id": "web-01-CVE-2021-44228", "label": "Upgrade log4j on web-01",
+         "cost": 1, "downtime": "low", "verification_status": "unverified"},
+        {"id": "A-restrict-web-hr", "type": "restrict_edge", "edge_id": "e-web-hr", "label": "Block web-01 to hr-01 on 8080",
+         "cost": 1, "downtime": "none", "verification_status": "unverified"},
+    ],
+}
+for _k, _doc in (("topology", _TOPOLOGY_TEMPLATE), ("exploit_conditions", _CONDITIONS_TEMPLATE), ("remediations", _REMEDIATIONS_TEMPLATE)):
+    IMPORT_TEMPLATES[_k] = (f"{_k}-template.json", "application/json", json.dumps(_doc, indent=1) + chr(10))
 COMMON_TZ = ["Asia/Tokyo", "UTC", "Asia/Singapore", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles"]
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 ALL_TZ = frozenset(available_timezones()) | {"UTC"}
@@ -244,7 +290,11 @@ def build_router(ws: db.Workspace) -> APIRouter:
 
     @r.get("/import", response_class=HTMLResponse)
     def import_form(request: Request, kind: str = "observations") -> Response:
-        return render(request, "import.html", {"title": "Import", "nav": "import", "kinds": KINDS, "kind_help": KIND_HELP, "kind": kind if kind in KINDS else "observations"})
+        with db.session_scope(ws) as s:
+            has_findings = s.execute(select(func.count(Finding.id))).scalar_one() > 0
+        return render(request, "import.html", {"title": "Import", "nav": "import", "kinds": KINDS, "kind_help": KIND_HELP,
+                                               "kind": kind if kind in KINDS else "observations", "templates": IMPORT_TEMPLATES,
+                                               "has_findings": has_findings})
 
     @r.post("/import/validate", response_class=HTMLResponse)
     async def import_validate(request: Request, kind: str = Form(...), csrf_token: str = Form(""), allow_partial: str | None = Form(None), file: UploadFile = File(...)) -> Response:

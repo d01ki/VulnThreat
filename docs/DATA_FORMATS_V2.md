@@ -4,6 +4,8 @@ All files are UTF-8 JSON objects with `"schema_version": "1.0"`, max 10 MB. **Un
 
 Import order: assets → findings → (claims) → topology → exploit conditions → remediations.
 
+**Shortcut:** only `assets.csv`, `findings.csv` and `topology.json` must be written by hand. Exploit conditions and remediations can be generated as drafts from the imported findings (see *Drafts* below). Templates for all three JSON files: Import screen → "Download template", or `GET /import/template/{topology|exploit_conditions|remediations}`.
+
 ```text
 tiw import topology topology.json
 tiw import exploit-conditions exploit_conditions.json
@@ -35,7 +37,7 @@ Rejected: duplicate ids, duplicate `(source, target, kind, ports)`, self-loops, 
 | Field | Required | Notes |
 |---|---|---|
 | `vulnerability_id` | yes | Must have at least one imported finding (orphans rejected). Synthetic workspaces: `DEMO-VULN-###` only |
-| `service_ports` | yes | Ports the vulnerable service listens on |
+| `service_ports` | yes | Ports the vulnerable service listens on. `["any"]` = port not recorded: matches every open port of an edge **and adds an `unknown` fact `cond:<vuln>:service-port`**, so such paths are at best *conditional* |
 | `requires_capability` / `grants_capability` | yes | Abstract attacker states (`network_access`, `user_context`, `code_execution`, `admin_context`, `credential_access`, `data_access`) |
 | `citation` | yes | Source of the preconditions |
 | `review_state`, `reviewer` | | |
@@ -71,6 +73,24 @@ References must exist (findings, assets, and edges of the latest topology). Acti
 ```
 
 Unknown keys, unknown nodes/findings, fabricated evidence ids and malformed fields are rejected with reasons. Accepted candidates are only verified against recorded facts; they never change the graph. `T0000` is a placeholder; other technique ids are shown but not validated (no pinned ATT&CK snapshot is shipped) and never used for attribution.
+
+## Drafts (generated from your findings)
+
+```text
+tiw draft all --import                      # generate and import both drafts
+tiw draft exploit-conditions --out ec.json  # or write an editable file
+tiw draft remediations --out rem.json
+```
+UI: Import → "Generate and import drafts" (CSRF-protected POST) or the download links. REST: `GET /api/v1/drafts/{exploit_conditions|remediations}`, `POST /api/v1/drafts/import`.
+
+What a draft contains, and what it deliberately does not invent:
+
+| Draft | Generated | Never invented |
+|---|---|---|
+| exploit conditions | one entry per vulnerability that has a finding: `service_ports: ["any"]`, `network_access` → `code_execution`, `review_state: unreviewed`, no conditions | ports, CVSS, review state, citations (citation text says "draft: not yet researched") |
+| remediations | one `patch_finding` per finding without one: effort `1` (placeholder), downtime `low`, `unverified` | real effort, edge restrictions, dependencies |
+
+Existing curated entries are kept verbatim and in order; only missing ones are appended. Re-running on an already-complete catalogue is a no-op. Because `any` ports add an unknown fact, no path that crosses a drafted vulnerability can be `supported`. Refine the draft (ports, capabilities, effort) and re-import to tighten the analysis.
 
 ## Exports
 
