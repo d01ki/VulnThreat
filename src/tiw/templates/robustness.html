@@ -3,7 +3,6 @@
 {% import "macros_v2.html" as v with context %}
 {% block content %}
 {{ m.page_head("Decision Robustness", "Would the recommendation survive if a claim were withdrawn, an edge were unknown or an applicability review were wrong? Canonical data is never modified.", info, show_import=False) }}
-{{ v.workflow("robustness") }}
 {{ v.demo_controls(info, csrf, csrf_field) }}
 
 <section class="card" aria-labelledby="wi-h">

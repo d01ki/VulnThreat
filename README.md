@@ -1,12 +1,12 @@
 <div align="center">
 
-# Threat Workbench
+# VulnThreat
 
-**Know which of your assets need action, and why.**
+**Which fix breaks the most attack paths, and does that choice survive if a piece of evidence is wrong?**
 
-Public exploitation reports + attacks seen on your own sensors → a clear, explainable decision for every asset.
+Your network paths + scanner findings + reviewed evidence → evidence-backed attack paths → the fixes that cut the most of them within your effort budget.
 
-![Attack Paths](docs/images/v2-attack-paths-1440.png)
+![What VulnThreat does](docs/images/v2-start-1440.png)
 
 </div>
 

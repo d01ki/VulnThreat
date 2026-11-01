@@ -3,7 +3,6 @@
 {% import "macros_v2.html" as v with context %}
 {% block content %}
 {{ m.page_head("Remediation Lab", "Choose the action portfolio that removes the most modelled attacker paths to crown jewels within an effort budget, and compare it with score-based rankings under the same budget.", info, show_import=False) }}
-{{ v.workflow("lab") }}
 {{ v.demo_controls(info, csrf, csrf_field) }}
 
 <form class="filters card pad" method="get" action="/remediation-lab">

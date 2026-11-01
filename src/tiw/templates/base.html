@@ -9,47 +9,69 @@
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
-{% set v1_items = [
+{% set route_steps = [
+  ("topology", "/topology", "Network Paths", "Record how hosts connect"),
+  ("attack_paths", "/attack-paths", "Attack Paths", "See evidence-backed routes"),
+  ("lab", "/remediation-lab", "Remediation Lab", "Pick fixes within a budget"),
+  ("robustness", "/robustness", "Robustness", "Test if the choice holds"),
+] %}
+{% set more_v2 = [
+  ("start", "/start", "info", "What VulnThreat does"),
+  ("runs", "/analysis-runs", "history", "Analysis Runs"),
+] %}
+{% set more_v1 = [
   ("home", "/", "changes", "Threat Changes"),
   ("threats", "/threats", "threats", "Threats"),
   ("observations", "/observations", "observations", "Observations" if info.has_telemetry else "Sensor events (optional)"),
   ("assets", "/assets", "assets", "Affected Assets"),
   ("investigations", "/investigations", "queue", "Investigation Queue"),
 ] %}
-{% set v2_items = [
-  ("attack_paths", "/attack-paths", "graph", "Attack Paths"),
-  ("topology", "/topology", "link", "Network Paths"),
-  ("lab", "/remediation-lab", "lab", "Remediation Lab"),
-  ("robustness", "/robustness", "scale", "Robustness"),
-  ("runs", "/analysis-runs", "history", "Analysis Runs"),
+{% set more_admin = [
+  ("import", "/import", "import", "Import"),
+  ("sources", "/sources", "sources", "Sources & Health"),
+  ("guide", "/guide", "info", "How the evidence model works"),
+  ("settings", "/settings", "settings", "Settings"),
 ] %}
-{% set nav_items = (v2_items + v1_items) if info.has_graph else (v1_items + v2_items) %}
-<header class="topbar">
-  <a class="brand" href="/"><span class="brand-mark">{{ icon("logo", "icon icon-sm") }}</span><span class="brand-name">{{ info.brand_name }}</span></a>
-  <button class="btn btn-ghost" id="nav-toggle" aria-controls="sidebar" aria-expanded="false">{{ icon("menu") }}<span>Menu</span></button>
+{% set more_keys = (more_v2 + more_v1 + more_admin) | map(attribute=0) | list %}
+{% if nav == "evidence" %}{% set nav = "attack_paths" %}{% endif %}
+<header class="masthead">
+  <div class="masthead-in">
+    <a class="brand" href="/start" aria-label="{{ info.brand_name }}: what this tool does">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="6" cy="24" r="3.2"/><circle cx="26" cy="8" r="3.2"/><path d="M8.6 22.2 13 18.6"/><path d="M16.6 15.6 19 13.6" class="bm-gap"/><path d="M21.4 11.6l2.2-1.8"/></svg>
+      <span class="brand-name">{{ info.brand_name }}</span>
+    </a>
+    <nav class="line-nav" aria-label="Workflow">
+      <ol>
+        {% for key, href, label, hint in route_steps %}
+        <li><a href="{{ href }}" {% if nav == key %}aria-current="page"{% endif %}><span class="stop" aria-hidden="true"></span><span class="ln-t"><span class="ln-n">{{ loop.index }}</span> {{ label }}</span><span class="ln-h">{{ hint }}</span></a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+    <details class="more" id="more-menu">
+      <summary class="btn btn-ghost{% if nav in more_keys %} is-here{% endif %}">{{ icon("menu", "icon icon-sm") }}<span>More</span>{% if health_problem %}<span class="dot-warn" title="A source is stale or failing"></span>{% endif %}</summary>
+      <div class="more-panel">
+        <div class="more-group">
+          {% for key, href, ic, label in more_v2 %}<a href="{{ href }}" {% if nav == key %}aria-current="page"{% endif %}>{{ icon(ic, "icon icon-sm") }}{{ label }}</a>{% endfor %}
+        </div>
+        <div class="more-group">
+          <p class="more-h">Exploitation evidence per CVE</p>
+          {% for key, href, ic, label in more_v1 %}<a href="{{ href }}" {% if nav == key %}aria-current="page"{% endif %}>{{ icon(ic, "icon icon-sm") }}{{ label }}</a>{% endfor %}
+        </div>
+        <div class="more-group">
+          <p class="more-h">Data</p>
+          {% for key, href, ic, label in more_admin %}<a href="{{ href }}" {% if nav == key %}aria-current="page"{% endif %}>{{ icon(ic, "icon icon-sm") }}{{ label }}{% if key == "sources" and health_problem %}<span class="dot-warn" title="A source is stale or failing"></span>{% endif %}</a>{% endfor %}
+        </div>
+      </div>
+    </details>
+  </div>
 </header>
-<div class="shell">
-  <nav class="sidebar" id="sidebar" aria-label="Main">
-    <a class="brand" href="/"><span class="brand-mark">{{ icon("logo", "icon icon-sm") }}</span><span class="brand-name">{{ info.brand_name }}</span></a>
-    <div class="nav">
-      {% for key, href, ic, label in nav_items %}
-      <a href="{{ href }}" {% if nav == key %}aria-current="page"{% endif %} aria-label="{{ label }}">{{ icon(ic) }}<span class="label">{{ label }}</span><span class="tip" aria-hidden="true">{{ label }}</span></a>
-      {% endfor %}
-    </div>
-    <div class="nav nav-bottom">
-      <a href="/import" {% if nav == "import" %}aria-current="page"{% endif %} aria-label="Import">{{ icon("import") }}<span class="label">Import</span><span class="tip" aria-hidden="true">Import</span></a>
-      <a href="/sources" {% if nav == "sources" %}aria-current="page"{% endif %} aria-label="Sources &amp; Health{% if health_problem %} (attention needed){% endif %}">{{ icon("sources") }}<span class="label">Sources &amp; Health</span>{% if health_problem %}<span class="dot-warn" title="A source is stale or failing"></span>{% endif %}<span class="tip" aria-hidden="true">Sources &amp; Health</span></a>
-      <a href="/guide" {% if nav == "guide" %}aria-current="page"{% endif %} aria-label="How it works">{{ icon("info") }}<span class="label">How it works</span><span class="tip" aria-hidden="true">How it works</span></a>
-      <a href="/settings" {% if nav == "settings" %}aria-current="page"{% endif %} aria-label="Settings">{{ icon("settings") }}<span class="label">Settings</span><span class="tip" aria-hidden="true">Settings</span></a>
-    </div>
-  </nav>
-  <main class="main" id="content">
-    {% if info.synthetic %}
-    <div class="synthetic-banner" role="note">{{ icon("flask", "icon icon-sm") }}<span><strong>Synthetic workspace.</strong> Every record here comes from demo fixtures and is not real threat intelligence.{% if info.clock_fixed %} Clock fixed at {{ info.now | t }}.{% endif %}</span></div>
-    {% endif %}
-    {% if notice %}<div class="callout ok notice" role="status">{{ icon("check") }}<span>{{ notice }}</span></div>{% endif %}
-    {% block content %}{% endblock %}
-  </main>
-</div>
+<main class="main" id="content">
+  {% if info.synthetic %}
+  <div class="synthetic-banner" role="note">{{ icon("flask", "icon icon-sm") }}<span><strong>Synthetic workspace.</strong> Every record here comes from demo fixtures and is not real threat intelligence.{% if info.clock_fixed %} Clock fixed at {{ info.now | t }}.{% endif %}</span></div>
+  {% endif %}
+  {% if notice %}<div class="callout ok notice" role="status">{{ icon("check") }}<span>{{ notice }}</span></div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot"><span>{{ info.brand_name }} models attack paths from your own records. Paths are hypotheses to check, not observed attacks.</span></footer>
 </body>
 </html>

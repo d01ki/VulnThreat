@@ -19,7 +19,7 @@ from tiw.storage.models import AppMeta, Base
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 DEFAULT_TIMEZONE = "Asia/Tokyo"
-DEFAULT_BRAND = "Threat Workbench"
+DEFAULT_BRAND = "VulnThreat"
 
 
 @dataclass(frozen=True)

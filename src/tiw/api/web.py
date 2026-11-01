@@ -374,6 +374,10 @@ def build_router(ws: db.Workspace) -> APIRouter:
             return render(request, "error.html", {"title": "Nothing fetched", "message": str(exc), "nav": "sources"}, 409)
         return RedirectResponse(f"/sources?notice={'fetch_failed' if out.status == 'failed' else 'fetch_ok'}#fetch", status_code=303)
 
+    @r.get("/start", response_class=HTMLResponse)
+    def start(request: Request) -> Response:
+        return render(request, "start.html", {"title": "What it does", "nav": "start"})
+
     @r.get("/guide", response_class=HTMLResponse)
     def guide(request: Request) -> Response:
         with db.session_scope(ws) as s:

@@ -3,7 +3,6 @@
 {% import "macros_v2.html" as v with context %}
 {% block content %}
 {{ m.page_head("Attack Paths", "Model paths from entry points to crown jewels, built from recorded topology, findings and structured preconditions. A path is a hypothesis to check, not an observed attack.", info, show_import=False) }}
-{{ v.workflow("attack_paths") }}
 {{ v.demo_controls(info, csrf, csrf_field) }}
 
 <section class="kpi-row" aria-label="Graph summary">
