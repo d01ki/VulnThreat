@@ -1,7 +1,9 @@
 """Container entrypoint: `python -m tiw.container`.
 
 TIW_MODE=live (default): initialise (or reuse) the persistent workspace in /data/workspace.
-TIW_MODE=demo: seed the synthetic scenarios into a separate /data/demo workspace.
+TIW_MODE=demo: seed a synthetic demo into a separate workspace.
+  TIW_DEMO_SCENARIO=attack-path (default): v2 attack-path triage demo in /data/demo-attack-path.
+  TIW_DEMO_SCENARIO=legacy: scenarios A-D in /data/demo.
 The server binds all interfaces inside the container; publish the port on 127.0.0.1 only.
 """
 
@@ -21,9 +23,16 @@ def main() -> None:
     if mode == "demo":
         from tiw.services import demo
 
-        ws = db.resolve_workspace(os.environ.get("TIW_DEMO_DIR", "/data/demo"))
-        demo.seed(ws, "all")
-        demo.advance(ws, 4)
+        scenario = os.environ.get("TIW_DEMO_SCENARIO", "attack-path").lower()
+        if scenario == "legacy":
+            ws = db.resolve_workspace(os.environ.get("TIW_DEMO_DIR", "/data/demo"))
+            demo.seed(ws, "all")
+            demo.advance(ws, 4)
+        elif scenario == "attack-path":
+            ws = db.resolve_workspace(os.environ.get("TIW_DEMO_DIR", "/data/demo-attack-path"))
+            demo.seed(ws, "attack-path")
+        else:
+            raise SystemExit("TIW_DEMO_SCENARIO must be attack-path or legacy")
     elif mode == "live":
         ws = db.resolve_workspace(os.environ.get("TIW_DATA_DIR", "/data/workspace"))
         db.init_workspace(ws, synthetic=False)
