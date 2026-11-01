@@ -2,6 +2,10 @@
 
 Everything is offline and synthetic: no API keys, no LLM, no WAF/IDS/SIEM logs, no scanning, no exploit execution. The clock is fixed, so every run shows the same numbers and the same path ids. All assets, vulnerabilities (`DEMO-VULN-1xx`), CVSS values, KEV/EPSS records and claims are fictional and labelled synthetic.
 
+## Online snapshot (no install)
+
+https://d01ki.github.io/VulnThreat/ is a static, read-only snapshot of this demo, rebuilt from `main` by `.github/workflows/pages.yml` (`scripts/build_static_demo.py`). Every page, budgets 0–5 × both objectives × every baseline, and single-factor what-ifs are pre-rendered; "Reset" and "Step 2" switch between the step-1 and step-2 snapshots. Imports, Network Paths editing, recording runs, multi-factor what-ifs and other values show a "run locally" note.
+
 ## Setup (once, ~1 minute)
 
 ```powershell

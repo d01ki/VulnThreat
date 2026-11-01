@@ -13,3 +13,6 @@ screenshots/
 docs/DESIGN.md
 docs/UI_DESIGN.md
 docs/IMPLEMENTATION_PROMPT.md
+
+# static demo build output (published by .github/workflows/pages.yml)
+site/
