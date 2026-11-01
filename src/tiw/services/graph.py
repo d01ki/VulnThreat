@@ -116,7 +116,7 @@ def load(s: Session, *, limits: Limits | None = None, at: datetime | None = None
     conds = latest_input(s, "exploit_conditions")
     rem = latest_input(s, "remediations")
     if topo is None:
-        raise GraphNotReady("no topology imported: run `tiw import topology topology.json`")
+        raise GraphNotReady("no network paths yet: add them on the Network Paths screen, or run `tiw import topology-csv edges.csv`")
     if conds is None:
         raise GraphNotReady("no exploit conditions imported: run `tiw import exploit-conditions exploit_conditions.json`")
     now = at or db.now(s)

@@ -5,11 +5,11 @@
 {{ m.page_head(title, "Attack-path triage needs a topology, exploit preconditions and (for the lab) a remediation catalog. No WAF, IDS or SIEM logs are required.", info) }}
 {{ v.workflow(nav) }}
 <section class="card">
-  {{ m.empty("Not set up yet", message, "/import?kind=topology", "Import topology", "/guide", "How it works") }}
+  {{ m.empty("Not set up yet", message, "/topology", "Describe network paths", "/import?kind=topology_csv", "Import a paths CSV") }}
   <ol class="small secondary pad">
     <li>Import assets and findings (CSV) as usual.</li>
     <li>Optionally import reviewed graph claims (claims JSON with predicates <code>reachability</code> / <code>precondition</code>).</li>
-    <li>Import <code>topology.json</code> (<a href="/import/template/topology">template</a>).</li>
+    <li>Describe your network paths: on the <a href="/topology">Network Paths</a> screen (no file needed), as a simple CSV (<a href="/import/template/topology_csv">template</a>: <code>source,target,ports,reachability,evidence_ref,reviewer</code>), or as <code>topology.json</code> (<a href="/import/template/topology">template</a>).</li>
     <li>Exploit conditions and remediations: <a href="/import#draft-h">generate drafts from your findings</a> in one click, or use the <a href="/import/template/exploit_conditions">exploit-conditions</a> and <a href="/import/template/remediations">remediations</a> templates.</li>
     <li>Or try the synthetic demo: <code>uv run tiw demo seed --scenario attack-path</code>.</li>
   </ol>
